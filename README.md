@@ -1,21 +1,176 @@
-```txt
-npm install
-npm run dev
+# 画像編集システム
+
+## プロジェクト概要
+- **名前**: 画像編集システム
+- **目標**: キャンペーン画像の割引率と価格を自動的に変更するWebアプリケーション
+- **主な機能**: 
+  - 画像アップロード（ドラッグ&ドロップ対応）
+  - 割引率の入力と価格の自動計算
+  - NanoBanana AIによる画像生成
+  - 生成画像のダウンロード
+
+## 現在完成している機能
+
+### ✅ 基本機能
+1. **画像アップロード機能**
+   - ドラッグ&ドロップ対応
+   - クリックでファイル選択
+   - PNG, JPG, JPEG形式対応
+
+2. **価格計算機能**
+   - 割引率入力（0〜100%）
+   - リアルタイム価格自動計算
+   - コムレギュラー（元価格: ¥4,400）
+   - コムハード（元価格: ¥4,950）
+
+3. **キャンペーンタイプ選択**
+   - 大感謝祭 限定キャンペーン
+   - お買い物マラソン限定キャンペーン
+   - カスタム
+
+4. **AI画像生成**
+   - NanoBanana Pro統合
+   - 元画像のレイアウト維持
+   - 数値部分のみ変更
+   - 高品質な画像出力
+
+5. **画像ダウンロード**
+   - ワンクリックダウンロード
+   - ファイル名自動設定
+
+## 機能エントリーURI
+
+### Web UI
+- **メインページ**: `/`
+  - 画像アップロード、割引率入力、画像生成UI
+
+### API エンドポイント
+- **POST `/api/calculate`**
+  - リクエスト: `{ "discountRate": 20 }`
+  - レスポンス: 計算された価格情報
+  ```json
+  {
+    "discountRate": 20,
+    "prices": {
+      "regular": { "original": 4400, "discounted": 3520 },
+      "hard": { "original": 4950, "discounted": 3960 }
+    }
+  }
+  ```
+
+- **POST `/api/generate-image`**
+  - リクエスト: FormData (image, discountRate, campaignType)
+  - レスポンス: 画像生成用プロンプトとパラメータ
+
+## URLs
+- **開発環境**: https://3000-iirb1svvzh1pxbdjfucbh-ea026bf9.sandbox.novita.ai
+- **本番環境**: デプロイ後に更新予定
+- **GitHub**: GitHub連携準備中
+
+## データアーキテクチャ
+
+### データモデル
+- **元画像**: Base64エンコード、FormDataとして送信
+- **割引率**: Number型（0-100の範囲）
+- **価格情報**: Object型
+  ```typescript
+  {
+    regular: { original: number, discounted: number },
+    hard: { original: number, discounted: number }
+  }
+  ```
+
+### ストレージサービス
+- **フロントエンド**: ブラウザメモリ（画像一時保存）
+- **バックエンド**: Cloudflare Workers（ステートレス）
+- **AI生成**: NanoBanana Pro API（外部サービス）
+
+### データフロー
+1. ユーザーが画像をアップロード → ブラウザメモリに保存
+2. 割引率を入力 → `/api/calculate`で価格計算
+3. 「画像を生成」クリック → `/api/generate-image`でプロンプト生成
+4. フロントエンドがNanoBanana APIを直接呼び出し
+5. 生成画像をプレビュー表示 → ダウンロード可能
+
+## 使い方ガイド
+
+### 基本的な使用方法
+1. **画像をアップロード**
+   - ドラッグ&ドロップまたはクリックして画像を選択
+   
+2. **設定を入力**
+   - キャンペーンタイプを選択
+   - 割引率を入力（例: 20, 25, 30）
+   - 価格が自動計算されます
+
+3. **画像を生成**
+   - 「画像を生成」ボタンをクリック
+   - AI画像生成が開始（最大2分程度）
+   
+4. **画像をダウンロード**
+   - 生成された画像をプレビュー
+   - 「画像をダウンロード」ボタンでダウンロード
+
+### 例
+- **20% OFF**: コムレギュラー ¥3,520、コムハード ¥3,960
+- **25% OFF**: コムレギュラー ¥3,300、コムハード ¥3,713
+- **30% OFF**: コムレギュラー ¥3,080、コムハード ¥3,465
+
+## デプロイメント
+
+### 現在のステータス
+- **ローカル開発**: ✅ 動作中
+- **本番デプロイ**: 準備中
+
+### 技術スタック
+- **フロントエンド**: HTML, TailwindCSS, JavaScript (Vanilla)
+- **バックエンド**: Hono + TypeScript
+- **デプロイ**: Cloudflare Pages
+- **AI画像生成**: NanoBanana Pro API
+- **開発環境**: PM2 (Process Manager)
+
+### ローカル開発手順
+```bash
+# ビルド
+npm run build
+
+# 開発サーバー起動
+pm2 start ecosystem.config.cjs
+
+# サービス確認
+curl http://localhost:3000
+
+# ログ確認
+pm2 logs webapp --nostream
 ```
 
-```txt
-npm run deploy
+### 本番デプロイ手順（予定）
+```bash
+# Cloudflare Pages にデプロイ
+npm run deploy:prod
 ```
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+## 未実装機能
+現時点で、基本機能はすべて実装済みです。
 
-```txt
-npm run cf-typegen
-```
+## 推奨される次のステップ
 
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
+### 機能拡張
+1. **画像履歴機能**: 過去に生成した画像を保存・管理
+2. **カスタムキャンペーン名**: ユーザーが独自のキャンペーン名を入力
+3. **バッチ処理**: 複数の割引率で一括生成
+4. **プレビュー機能**: 画像生成前にプレビュー表示
 
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
-```
+### 技術改善
+1. **Cloudflare D1統合**: 生成履歴をデータベースに保存
+2. **R2 Storage統合**: 生成画像を永続化
+3. **認証機能**: ユーザーログインと個人履歴管理
+4. **キャッシュ機能**: 同じ設定の画像を再生成しない
+
+### デプロイ
+1. **GitHub連携**: リポジトリ作成とコードプッシュ
+2. **Cloudflare Pagesデプロイ**: 本番環境公開
+3. **カスタムドメイン**: 独自ドメインの設定
+
+## 最終更新日
+2026-02-07
