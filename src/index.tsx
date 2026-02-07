@@ -62,9 +62,16 @@ app.post('/api/generate-image', async (c) => {
       return c.json({ error: '画像と割引率は必須です' }, 400)
     }
 
-    // 画像をBase64に変換
+    // 画像をBase64に変換（効率的な方法）
     const arrayBuffer = await imageFile.arrayBuffer()
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    const uint8Array = new Uint8Array(arrayBuffer)
+    let binary = ''
+    const chunkSize = 8192
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, i + chunkSize)
+      binary += String.fromCharCode.apply(null, Array.from(chunk))
+    }
+    const base64Image = btoa(binary)
     const imageUrl = `data:${imageFile.type};base64,${base64Image}`
 
     // 価格計算
@@ -161,7 +168,15 @@ app.post('/api/generate-batch', async (c) => {
     // 各画像のプロンプトとURLを生成
     const imageData = await Promise.all(images.map(async (imageFile) => {
       const arrayBuffer = await imageFile.arrayBuffer()
-      const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+      // より効率的なBase64変換（大きな画像でもスタックオーバーフローしない）
+      const uint8Array = new Uint8Array(arrayBuffer)
+      let binary = ''
+      const chunkSize = 8192
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.subarray(i, i + chunkSize)
+        binary += String.fromCharCode.apply(null, Array.from(chunk))
+      }
+      const base64Image = btoa(binary)
       const imageUrl = `data:${imageFile.type};base64,${base64Image}`
 
       const prompt = `This is a Japanese promotional campaign image for a scalp brush product. 
