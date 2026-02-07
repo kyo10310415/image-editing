@@ -1,3 +1,5 @@
+// DOMが完全に読み込まれてから実行
+document.addEventListener('DOMContentLoaded', function() {
 // グローバル変数
 let uploadedImageFiles = [];
 let imageInputType = 'file'; // 'file' or 'url'
@@ -82,18 +84,18 @@ dropZone.addEventListener('dragleave', (e) => {
     dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
 });
 
-dropZone.addEventListener('drop', (e) => {
+dropZone.addEventListener('drop', async (e) => {
     e.preventDefault();
     dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
     
     const files = Array.from(e.dataTransfer.files);
-    handleFileSelect(files);
+    await handleFileSelect(files);
 });
 
 // ファイル選択イベント
-imageInput.addEventListener('change', (e) => {
+imageInput.addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
-    handleFileSelect(files);
+    await handleFileSelect(files);
 });
 
 // ファイル処理（画像リサイズ機能付き）
@@ -537,3 +539,5 @@ resetBtn.addEventListener('click', () => {
 
 // 初期価格計算
 calculatePrices();
+
+}); // DOMContentLoaded終了
