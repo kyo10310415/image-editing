@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { serveStatic } from 'hono/cloudflare-workers'
+import { serveStatic } from '@hono/node-server/serve-static'
+import { generateImageWithImagen } from './imagen'
+import 'dotenv/config'
 
 const app = new Hono()
 
@@ -293,41 +295,33 @@ IMPORTANT: Only change the discount percentage and calculated prices. Do NOT cha
   }
 })
 
-// 実際の画像生成API（NanoBanana呼び出し）
+// Vertex AI Imagen画像生成API
 app.post('/api/execute-generation', async (c) => {
   try {
     const { prompt, imageUrl, discountRate, index } = await c.req.json()
     
-    // NanoBanana APIを呼び出し
-    const response = await fetch('https://www.genspark.ai/api/genaimedia/v1/image', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'nano-banana-pro',
-        query: prompt,
-        image_urls: [imageUrl],
-        aspect_ratio: '16:9',
-        task_summary: `Generate campaign image with ${discountRate}% discount`
-      })
+    if (!prompt) {
+      return c.json({ error: 'プロンプトは必須です' }, 400)
+    }
+
+    console.log(`Generating image ${index + 1} with Vertex AI Imagen...`)
+    console.log(`Prompt: ${prompt.substring(0, 100)}...`)
+
+    // Vertex AI Imagenで画像生成
+    const generatedImageUrl = await generateImageWithImagen({
+      prompt,
+      imageUrl, // 参照画像（編集モード）
+      aspectRatio: '16:9'
     })
 
-    if (!response.ok) {
-      return c.json({ error: `NanoBanana API error: ${response.status}` }, 500)
-    }
-
-    const data = await response.json()
-    
-    if (data && data.generated_images && data.generated_images.length > 0) {
-      return c.json({
-        success: true,
-        imageUrl: data.generated_images[0].url,
-        index: index
-      })
-    } else {
-      return c.json({ error: '画像生成に失敗しました' }, 500)
-    }
+    return c.json({
+      success: true,
+      generated_images: [
+        {
+          url: generatedImageUrl
+        }
+      ]
+    })
 
   } catch (error) {
     console.error('Execute generation error:', error)

@@ -20,6 +20,13 @@ node_modules/
 .env.production
 .dev.vars
 
+# Google Cloud Service Account Keys
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!wrangler.jsonc
+
 # logs
 logs/
 *.log
