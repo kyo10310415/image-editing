@@ -363,6 +363,10 @@ app.get('/', (c) => {
                                 <i class="fas fa-cloud-upload-alt text-5xl text-indigo-400 mb-3"></i>
                                 <p class="text-gray-600">クリックまたはドラッグ&ドロップ</p>
                                 <p class="text-sm text-gray-500 mt-2">PNG, JPG, JPEG対応（複数選択可能）</p>
+                                <p class="text-xs text-green-600 mt-2">
+                                    <i class="fas fa-compress-arrows-alt mr-1"></i>
+                                    大きな画像は自動的に最適化されます（最大幅1920px、品質90%）
+                                </p>
                             </div>
                             
                             <div id="uploadedImagesContainer" class="hidden space-y-2 mt-4">
@@ -485,6 +489,12 @@ app.get('/', (c) => {
                     <li>「画像を生成」ボタンをクリックすると、AIが新しい画像を生成します</li>
                     <li>生成された画像を個別にダウンロードするか、一括でダウンロードできます</li>
                 </ol>
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm text-blue-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>大きな画像について:</strong> 高解像度の画像をアップロードすると、自動的に最大幅1920pxにリサイズされ、90%品質で圧縮されます。処理速度が向上し、エラーを防ぎます。
+                    </p>
+                </div>
             </div>
         </div>
         

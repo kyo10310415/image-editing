@@ -96,8 +96,8 @@ imageInput.addEventListener('change', (e) => {
     handleFileSelect(files);
 });
 
-// ファイル処理
-function handleFileSelect(files) {
+// ファイル処理（画像リサイズ機能付き）
+async function handleFileSelect(files) {
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
     if (imageFiles.length === 0) {
@@ -105,11 +105,88 @@ function handleFileSelect(files) {
         return;
     }
     
-    // 新しい画像を追加
-    uploadedImageFiles = [...uploadedImageFiles, ...imageFiles];
+    // 画像をリサイズして追加
+    const resizedFiles = [];
+    for (const file of imageFiles) {
+        try {
+            const resizedFile = await resizeImage(file, 1920); // 最大幅1920pxにリサイズ
+            resizedFiles.push(resizedFile);
+        } catch (error) {
+            console.error('画像リサイズエラー:', error);
+            // リサイズに失敗した場合は元のファイルを使用
+            resizedFiles.push(file);
+        }
+    }
+    
+    uploadedImageFiles = [...uploadedImageFiles, ...resizedFiles];
     
     updateImagesList();
     generateBtn.disabled = false;
+}
+
+// 画像リサイズ関数
+function resizeImage(file, maxWidth = 1920) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            const img = new Image();
+            
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // 画像が最大幅より大きい場合のみリサイズ
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Canvasから圧縮されたBlobを取得
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // Blobをファイルオブジェクトに変換
+                        const resizedFile = new File([blob], file.name, {
+                            type: file.type,
+                            lastModified: Date.now()
+                        });
+                        
+                        // ファイルサイズの情報をログ出力
+                        const originalSizeMB = (file.size / 1024 / 1024).toFixed(2);
+                        const resizedSizeMB = (resizedFile.size / 1024 / 1024).toFixed(2);
+                        console.log(`画像リサイズ: ${file.name}`);
+                        console.log(`  元のサイズ: ${originalSizeMB} MB`);
+                        console.log(`  リサイズ後: ${resizedSizeMB} MB`);
+                        console.log(`  元の解像度: ${img.width}x${img.height}`);
+                        console.log(`  リサイズ後: ${width}x${height}`);
+                        
+                        resolve(resizedFile);
+                    } else {
+                        reject(new Error('Canvas to Blob conversion failed'));
+                    }
+                }, file.type, 0.9); // 品質90%で圧縮
+            };
+            
+            img.onerror = () => {
+                reject(new Error('Image loading failed'));
+            };
+            
+            img.src = e.target.result;
+        };
+        
+        reader.onerror = () => {
+            reject(new Error('File reading failed'));
+        };
+        
+        reader.readAsDataURL(file);
+    });
 }
 
 // 画像リストの更新
