@@ -71,8 +71,13 @@ app.post('/api/generate-image', async (c) => {
     const regularPrice = calculatePrice(4400, Number(discountRate))
     const hardPrice = calculatePrice(4950, Number(discountRate))
 
+    // カスタムキャンペーン名の取得
+    const customCampaignName = formData.get('customCampaignName') as string
+    
     // キャンペーンタイトル設定
-    const campaignTitle = campaignType === 'thanksgiving' ? '大感謝祭 限定キャンペーン' : 
+    const campaignTitle = campaignType === 'custom' && customCampaignName ? 
+                          customCampaignName :
+                          campaignType === 'thanksgiving' ? '大感謝祭 限定キャンペーン' : 
                           campaignType === 'marathon' ? 'お買い物マラソン限定キャンペーン' :
                           '限定キャンペーン'
 
@@ -113,6 +118,95 @@ IMPORTANT: Only change the discount percentage and calculated prices. Do NOT cha
   } catch (error) {
     console.error('Image generation error:', error)
     return c.json({ error: '画像生成中にエラーが発生しました' }, 500)
+  }
+})
+
+// 一括画像生成API
+app.post('/api/generate-batch', async (c) => {
+  try {
+    const formData = await c.req.formData()
+    const discountRate = formData.get('discountRate') as string
+    const campaignType = formData.get('campaignType') as string
+    const customCampaignName = formData.get('customCampaignName') as string
+    
+    if (!discountRate) {
+      return c.json({ error: '割引率は必須です' }, 400)
+    }
+
+    // 複数の画像ファイルを取得
+    const images: File[] = []
+    let index = 0
+    while (true) {
+      const imageFile = formData.get(`image_${index}`) as File
+      if (!imageFile) break
+      images.push(imageFile)
+      index++
+    }
+
+    if (images.length === 0) {
+      return c.json({ error: '少なくとも1つの画像が必要です' }, 400)
+    }
+
+    // 価格計算
+    const regularPrice = calculatePrice(4400, Number(discountRate))
+    const hardPrice = calculatePrice(4950, Number(discountRate))
+
+    // キャンペーンタイトル設定
+    const campaignTitle = campaignType === 'custom' && customCampaignName ? 
+                          customCampaignName :
+                          campaignType === 'thanksgiving' ? '大感謝祭 限定キャンペーン' : 
+                          campaignType === 'marathon' ? 'お買い物マラソン限定キャンペーン' :
+                          '限定キャンペーン'
+
+    // 各画像のプロンプトとURLを生成
+    const imageData = await Promise.all(images.map(async (imageFile) => {
+      const arrayBuffer = await imageFile.arrayBuffer()
+      const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+      const imageUrl = `data:${imageFile.type};base64,${base64Image}`
+
+      const prompt = `This is a Japanese promotional campaign image for a scalp brush product. 
+The image should maintain the exact same layout and design as the reference image.
+
+Campaign title at the top: "${campaignTitle}"
+Product name: "スカルプブラシ コム"
+
+Discount section with red arrow label showing: "${discountRate}% OFF"
+
+Product pricing:
+- Regular model (コムレギュラー): Original price ¥4,400 (税込) → Special price ¥${regularPrice.toLocaleString('ja-JP')} (税込)
+- Hard model (コムハード): Original price ¥4,950 (税込) → Special price ¥${hardPrice.toLocaleString('ja-JP')} (税込)
+
+Keep all other elements exactly the same including:
+- Product images (white and brown brushes)
+- Layout and positioning
+- Typography and fonts
+- Color scheme
+- Footer text: "※割引率は変更になる可能性がございます"
+
+IMPORTANT: Only change the discount percentage and calculated prices. Do NOT change any other design elements.`
+
+      return {
+        prompt,
+        imageUrl,
+        originalName: imageFile.name
+      }
+    }))
+
+    return c.json({
+      success: true,
+      count: images.length,
+      images: imageData,
+      prices: {
+        regular: regularPrice,
+        hard: hardPrice
+      },
+      discountRate: Number(discountRate),
+      campaignTitle
+    })
+
+  } catch (error) {
+    console.error('Batch generation error:', error)
+    return c.json({ error: '一括画像生成中にエラーが発生しました' }, 500)
   }
 })
 
@@ -170,14 +264,20 @@ app.get('/', (c) => {
                         </h2>
                         
                         <div class="border-2 border-dashed border-indigo-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors cursor-pointer" id="dropZone">
-                            <input type="file" id="imageInput" accept="image/*" class="hidden">
+                            <input type="file" id="imageInput" accept="image/*" multiple class="hidden">
                             <i class="fas fa-cloud-upload-alt text-5xl text-indigo-400 mb-3"></i>
                             <p class="text-gray-600">クリックまたはドラッグ&ドロップ</p>
-                            <p class="text-sm text-gray-500 mt-2">PNG, JPG, JPEG対応</p>
+                            <p class="text-sm text-gray-500 mt-2">PNG, JPG, JPEG対応（複数選択可能）</p>
                         </div>
                         
-                        <div id="uploadedImagePreview" class="preview-container hidden">
-                            <img id="uploadedImage" class="preview-image" alt="アップロード画像">
+                        <div id="uploadedImagesContainer" class="hidden space-y-2">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700">選択した画像 (<span id="imageCount">0</span>枚)</span>
+                                <button id="clearImagesBtn" class="text-sm text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash mr-1"></i>すべてクリア
+                                </button>
+                            </div>
+                            <div id="uploadedImagesList" class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto"></div>
                         </div>
                     </div>
                     
@@ -195,6 +295,12 @@ app.get('/', (c) => {
                                 <option value="marathon">お買い物マラソン限定キャンペーン</option>
                                 <option value="custom">カスタム</option>
                             </select>
+                        </div>
+                        
+                        <div id="customCampaignNameContainer" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">カスタムキャンペーン名</label>
+                            <input type="text" id="customCampaignName" placeholder="例: 春のセール限定キャンペーン" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         </div>
                         
                         <div>
@@ -240,20 +346,18 @@ app.get('/', (c) => {
                     <div id="loadingIndicator" class="loading flex-col items-center justify-center py-12">
                         <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mb-4"></div>
                         <p class="text-gray-600">AI画像生成中...</p>
-                        <p class="text-sm text-gray-500 mt-2">最大2分程度かかる場合があります</p>
+                        <p id="loadingProgress" class="text-sm text-gray-500 mt-2">処理中...</p>
                     </div>
                     
-                    <div id="resultImageContainer" class="hidden">
-                        <div class="preview-container">
-                            <img id="resultImage" class="preview-image" alt="生成された画像">
-                        </div>
+                    <div id="resultImagesContainer" class="hidden">
+                        <div id="resultImagesList" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
                         
-                        <div class="flex gap-4 mt-4">
-                            <a id="downloadBtn" href="#" download="campaign_image.png" 
-                               class="flex-1 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-all text-center">
+                        <div class="flex gap-4 mt-6">
+                            <button id="downloadAllBtn" 
+                                    class="flex-1 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-all">
                                 <i class="fas fa-download mr-2"></i>
-                                画像をダウンロード
-                            </a>
+                                すべてダウンロード
+                            </button>
                             <button id="resetBtn" 
                                     class="flex-1 bg-gray-600 text-white font-bold py-3 rounded-lg hover:bg-gray-700 transition-all">
                                 <i class="fas fa-redo mr-2"></i>
@@ -271,10 +375,11 @@ app.get('/', (c) => {
                     使い方
                 </h3>
                 <ol class="list-decimal list-inside space-y-2 text-gray-600">
-                    <li>キャンペーン画像（元画像）をアップロードします</li>
-                    <li>キャンペーンタイプを選択し、割引率を入力します</li>
+                    <li>キャンペーン画像（元画像）を1枚または複数枚アップロードします</li>
+                    <li>キャンペーンタイプを選択（カスタムを選択すると独自の名前を入力できます）</li>
+                    <li>割引率を入力します（価格が自動計算されます）</li>
                     <li>「画像を生成」ボタンをクリックすると、AIが新しい画像を生成します</li>
-                    <li>生成された画像をダウンロードして使用できます</li>
+                    <li>生成された画像を個別にダウンロードするか、一括でダウンロードできます</li>
                 </ol>
             </div>
         </div>
