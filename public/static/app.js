@@ -338,25 +338,17 @@ async function generateFromFiles(discountRate, campaignType, customCampaignName)
             
             const { prompt, imageUrl, originalName } = images[i];
             
-            // NanoBanana APIを直接呼び出し
-            const imageGenResponse = await axios.post('https://www.genspark.ai/api/genaimedia/v1/image', {
-                model: 'nano-banana-pro',
-                query: prompt,
-                image_urls: [imageUrl],
-                aspect_ratio: '16:9',
-                task_summary: `Generate campaign image ${i + 1} with ${discountRate}% discount`
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+            // バックエンド経由でNanoBanana APIを呼び出し
+            const imageGenResponse = await axios.post('/api/execute-generation', {
+                prompt: prompt,
+                imageUrl: imageUrl,
+                discountRate: discountRate,
+                index: i
             });
             
-            if (imageGenResponse.data && imageGenResponse.data.generated_images && 
-                imageGenResponse.data.generated_images.length > 0) {
-                
-                const generatedImageUrl = imageGenResponse.data.generated_images[0].url;
+            if (imageGenResponse.data && imageGenResponse.data.success) {
                 generatedImages.push({
-                    url: generatedImageUrl,
+                    url: imageGenResponse.data.imageUrl,
                     originalName: originalName,
                     index: i
                 });
@@ -424,25 +416,17 @@ async function generateFromUrls(imageUrls, discountRate, campaignType, customCam
             
             const { prompt, imageUrl, originalName } = images[i];
             
-            // NanoBanana APIを直接呼び出し
-            const imageGenResponse = await axios.post('https://www.genspark.ai/api/genaimedia/v1/image', {
-                model: 'nano-banana-pro',
-                query: prompt,
-                image_urls: [imageUrl],
-                aspect_ratio: '16:9',
-                task_summary: `Generate campaign image ${i + 1} with ${discountRate}% discount`
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+            // バックエンド経由でNanoBanana APIを呼び出し
+            const imageGenResponse = await axios.post('/api/execute-generation', {
+                prompt: prompt,
+                imageUrl: imageUrl,
+                discountRate: discountRate,
+                index: i
             });
             
-            if (imageGenResponse.data && imageGenResponse.data.generated_images && 
-                imageGenResponse.data.generated_images.length > 0) {
-                
-                const generatedImageUrl = imageGenResponse.data.generated_images[0].url;
+            if (imageGenResponse.data && imageGenResponse.data.success) {
                 generatedImages.push({
-                    url: generatedImageUrl,
+                    url: imageGenResponse.data.imageUrl,
                     originalName: originalName,
                     index: i
                 });
