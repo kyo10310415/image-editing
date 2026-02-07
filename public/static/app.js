@@ -477,7 +477,7 @@ async function generateFromUrls(imageUrls, discountRate, campaignType, customCam
     } finally {
         generateBtn.disabled = false;
     }
-});
+}
 
 // 生成画像の表示
 function displayGeneratedImages() {
