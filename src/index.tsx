@@ -225,6 +225,74 @@ IMPORTANT: Only change the discount percentage and calculated prices. Do NOT cha
   }
 })
 
+// URL指定による一括画像生成API
+app.post('/api/generate-batch-url', async (c) => {
+  try {
+    const { imageUrls, discountRate, campaignType, customCampaignName } = await c.req.json()
+    
+    if (!discountRate || !imageUrls || imageUrls.length === 0) {
+      return c.json({ error: '画像URLと割引率は必須です' }, 400)
+    }
+
+    // 価格計算
+    const regularPrice = calculatePrice(4400, Number(discountRate))
+    const hardPrice = calculatePrice(4950, Number(discountRate))
+
+    // キャンペーンタイトル設定
+    const campaignTitle = campaignType === 'custom' && customCampaignName ? 
+                          customCampaignName :
+                          campaignType === 'thanksgiving' ? '大感謝祭 限定キャンペーン' : 
+                          campaignType === 'marathon' ? 'お買い物マラソン限定キャンペーン' :
+                          '限定キャンペーン'
+
+    // 各画像URLのプロンプトを生成
+    const imageData = imageUrls.map((imageUrl: string, index: number) => {
+      const prompt = `This is a Japanese promotional campaign image for a scalp brush product. 
+The image should maintain the exact same layout and design as the reference image.
+
+Campaign title at the top: "${campaignTitle}"
+Product name: "スカルプブラシ コム"
+
+Discount section with red arrow label showing: "${discountRate}% OFF"
+
+Product pricing:
+- Regular model (コムレギュラー): Original price ¥4,400 (税込) → Special price ¥${regularPrice.toLocaleString('ja-JP')} (税込)
+- Hard model (コムハード): Original price ¥4,950 (税込) → Special price ¥${hardPrice.toLocaleString('ja-JP')} (税込)
+
+Keep all other elements exactly the same including:
+- Product images (white and brown brushes)
+- Layout and positioning
+- Typography and fonts
+- Color scheme
+- Footer text: "※割引率は変更になる可能性がございます"
+
+IMPORTANT: Only change the discount percentage and calculated prices. Do NOT change any other design elements.`
+
+      return {
+        prompt,
+        imageUrl,
+        originalName: `image_${index + 1}`
+      }
+    })
+
+    return c.json({
+      success: true,
+      count: imageUrls.length,
+      images: imageData,
+      prices: {
+        regular: regularPrice,
+        hard: hardPrice
+      },
+      discountRate: Number(discountRate),
+      campaignTitle
+    })
+
+  } catch (error) {
+    console.error('URL batch generation error:', error)
+    return c.json({ error: 'URL指定による画像生成中にエラーが発生しました' }, 500)
+  }
+})
+
 // ホームページ
 app.get('/', (c) => {
   return c.html(`
@@ -278,21 +346,42 @@ app.get('/', (c) => {
                             1. 元画像をアップロード
                         </h2>
                         
-                        <div class="border-2 border-dashed border-indigo-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors cursor-pointer" id="dropZone">
-                            <input type="file" id="imageInput" accept="image/*" multiple class="hidden">
-                            <i class="fas fa-cloud-upload-alt text-5xl text-indigo-400 mb-3"></i>
-                            <p class="text-gray-600">クリックまたはドラッグ&ドロップ</p>
-                            <p class="text-sm text-gray-500 mt-2">PNG, JPG, JPEG対応（複数選択可能）</p>
+                        <div class="mb-3">
+                            <label class="flex items-center text-sm text-gray-600 mb-2">
+                                <input type="radio" name="imageInputType" value="file" checked class="mr-2">
+                                ファイルをアップロード
+                            </label>
+                            <label class="flex items-center text-sm text-gray-600">
+                                <input type="radio" name="imageInputType" value="url" class="mr-2">
+                                画像URLを入力
+                            </label>
                         </div>
                         
-                        <div id="uploadedImagesContainer" class="hidden space-y-2">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-sm font-medium text-gray-700">選択した画像 (<span id="imageCount">0</span>枚)</span>
-                                <button id="clearImagesBtn" class="text-sm text-red-600 hover:text-red-800">
-                                    <i class="fas fa-trash mr-1"></i>すべてクリア
-                                </button>
+                        <div id="fileUploadSection">
+                            <div class="border-2 border-dashed border-indigo-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors cursor-pointer" id="dropZone">
+                                <input type="file" id="imageInput" accept="image/*" multiple class="hidden">
+                                <i class="fas fa-cloud-upload-alt text-5xl text-indigo-400 mb-3"></i>
+                                <p class="text-gray-600">クリックまたはドラッグ&ドロップ</p>
+                                <p class="text-sm text-gray-500 mt-2">PNG, JPG, JPEG対応（複数選択可能）</p>
                             </div>
-                            <div id="uploadedImagesList" class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto"></div>
+                            
+                            <div id="uploadedImagesContainer" class="hidden space-y-2 mt-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm font-medium text-gray-700">選択した画像 (<span id="imageCount">0</span>枚)</span>
+                                    <button id="clearImagesBtn" class="text-sm text-red-600 hover:text-red-800">
+                                        <i class="fas fa-trash mr-1"></i>すべてクリア
+                                    </button>
+                                </div>
+                                <div id="uploadedImagesList" class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="urlInputSection" class="hidden">
+                            <div class="space-y-2">
+                                <textarea id="imageUrls" rows="4" placeholder="画像URLを入力してください（1行に1URL）&#10;例:&#10;https://www.genspark.ai/api/files/s/gnHscP8A&#10;https://www.genspark.ai/api/files/s/dUVrMxmY" 
+                                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                                <p class="text-xs text-gray-500">複数のURLを入力する場合は改行で区切ってください</p>
+                            </div>
                         </div>
                     </div>
                     

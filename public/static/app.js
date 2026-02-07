@@ -1,7 +1,12 @@
 // グローバル変数
 let uploadedImageFiles = [];
+let imageInputType = 'file'; // 'file' or 'url'
 
 // DOM要素
+const imageInputTypeRadios = document.getElementsByName('imageInputType');
+const fileUploadSection = document.getElementById('fileUploadSection');
+const urlInputSection = document.getElementById('urlInputSection');
+const imageUrlsTextarea = document.getElementById('imageUrls');
 const dropZone = document.getElementById('dropZone');
 const imageInput = document.getElementById('imageInput');
 const uploadedImagesContainer = document.getElementById('uploadedImagesContainer');
@@ -22,6 +27,35 @@ const resultImagesContainer = document.getElementById('resultImagesContainer');
 const resultImagesList = document.getElementById('resultImagesList');
 const downloadAllBtn = document.getElementById('downloadAllBtn');
 const resetBtn = document.getElementById('resetBtn');
+
+// 画像入力タイプの切り替え
+imageInputTypeRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        imageInputType = e.target.value;
+        if (imageInputType === 'file') {
+            fileUploadSection.classList.remove('hidden');
+            urlInputSection.classList.add('hidden');
+        } else {
+            fileUploadSection.classList.add('hidden');
+            urlInputSection.classList.remove('hidden');
+        }
+        // 生成ボタンの状態を更新
+        updateGenerateButtonState();
+    });
+});
+
+// 生成ボタンの状態を更新
+function updateGenerateButtonState() {
+    if (imageInputType === 'file') {
+        generateBtn.disabled = uploadedImageFiles.length === 0;
+    } else {
+        const urls = imageUrlsTextarea.value.trim();
+        generateBtn.disabled = urls === '';
+    }
+}
+
+// URL入力の変更を監視
+imageUrlsTextarea.addEventListener('input', updateGenerateButtonState);
 
 // キャンペーンタイプ変更時の処理
 campaignTypeSelect.addEventListener('change', () => {
@@ -155,11 +189,6 @@ let generatedImages = [];
 
 // 画像生成
 generateBtn.addEventListener('click', async () => {
-    if (uploadedImageFiles.length === 0) {
-        alert('画像をアップロードしてください');
-        return;
-    }
-    
     const discountRate = parseFloat(discountRateInput.value);
     const campaignType = campaignTypeSelect.value;
     const customCampaignName = customCampaignNameInput.value;
@@ -173,6 +202,26 @@ generateBtn.addEventListener('click', async () => {
         alert('カスタムキャンペーン名を入力してください');
         return;
     }
+    
+    // 画像入力タイプに応じて処理を分岐
+    if (imageInputType === 'file') {
+        if (uploadedImageFiles.length === 0) {
+            alert('画像をアップロードしてください');
+            return;
+        }
+        await generateFromFiles(discountRate, campaignType, customCampaignName);
+    } else {
+        const imageUrls = imageUrlsTextarea.value.trim().split('\n').filter(url => url.trim() !== '');
+        if (imageUrls.length === 0) {
+            alert('画像URLを入力してください');
+            return;
+        }
+        await generateFromUrls(imageUrls, discountRate, campaignType, customCampaignName);
+    }
+});
+
+// ファイルから画像生成
+async function generateFromFiles(discountRate, campaignType, customCampaignName) {
     
     // UIの更新
     resultSection.classList.remove('hidden');
@@ -242,7 +291,109 @@ generateBtn.addEventListener('click', async () => {
         
     } catch (error) {
         console.error('画像生成エラー:', error);
-        alert('画像生成中にエラーが発生しました。もう一度お試しください。');
+        let errorMessage = '画像生成中にエラーが発生しました。';
+        
+        if (error.response) {
+            // サーバーからのエラーレスポンス
+            console.error('エラーレスポンス:', error.response.data);
+            errorMessage += `\nステータス: ${error.response.status}`;
+            if (error.response.data && error.response.data.error) {
+                errorMessage += `\n詳細: ${error.response.data.error}`;
+            }
+        } else if (error.request) {
+            // リクエストは送信されたがレスポンスがない
+            console.error('レスポンスなし:', error.request);
+            errorMessage += '\nサーバーからの応答がありません。';
+        } else {
+            // リクエスト設定中のエラー
+            console.error('エラー:', error.message);
+            errorMessage += `\n${error.message}`;
+        }
+        
+        alert(errorMessage);
+        loadingIndicator.classList.remove('active');
+    } finally {
+        generateBtn.disabled = false;
+    }
+}
+
+// URLから画像生成
+async function generateFromUrls(imageUrls, discountRate, campaignType, customCampaignName) {
+    // UIの更新
+    resultSection.classList.remove('hidden');
+    loadingIndicator.classList.add('active');
+    resultImagesContainer.classList.add('hidden');
+    generateBtn.disabled = true;
+    generatedImages = [];
+    
+    try {
+        // バックエンドAPIを呼び出してプロンプトを取得
+        const response = await axios.post('/api/generate-batch-url', {
+            imageUrls: imageUrls,
+            discountRate: discountRate,
+            campaignType: campaignType,
+            customCampaignName: customCampaignName
+        });
+        
+        const { images, count } = response.data;
+        
+        loadingProgress.textContent = `${count}枚の画像を生成中...`;
+        
+        // 各画像を順次生成
+        for (let i = 0; i < images.length; i++) {
+            loadingProgress.textContent = `画像 ${i + 1}/${count} を生成中...`;
+            
+            const { prompt, imageUrl, originalName } = images[i];
+            
+            // NanoBanana APIを直接呼び出し
+            const imageGenResponse = await axios.post('https://www.genspark.ai/api/genaimedia/v1/image', {
+                model: 'nano-banana-pro',
+                query: prompt,
+                image_urls: [imageUrl],
+                aspect_ratio: '16:9',
+                task_summary: `Generate campaign image ${i + 1} with ${discountRate}% discount`
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (imageGenResponse.data && imageGenResponse.data.generated_images && 
+                imageGenResponse.data.generated_images.length > 0) {
+                
+                const generatedImageUrl = imageGenResponse.data.generated_images[0].url;
+                generatedImages.push({
+                    url: generatedImageUrl,
+                    originalName: originalName,
+                    index: i
+                });
+            }
+        }
+        
+        // すべての画像生成が完了
+        displayGeneratedImages();
+        loadingIndicator.classList.remove('active');
+        resultImagesContainer.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('画像生成エラー:', error);
+        let errorMessage = '画像生成中にエラーが発生しました。';
+        
+        if (error.response) {
+            console.error('エラーレスポンス:', error.response.data);
+            errorMessage += `\nステータス: ${error.response.status}`;
+            if (error.response.data && error.response.data.error) {
+                errorMessage += `\n詳細: ${error.response.data.error}`;
+            }
+        } else if (error.request) {
+            console.error('レスポンスなし:', error.request);
+            errorMessage += '\nサーバーからの応答がありません。';
+        } else {
+            console.error('エラー:', error.message);
+            errorMessage += `\n${error.message}`;
+        }
+        
+        alert(errorMessage);
         loadingIndicator.classList.remove('active');
     } finally {
         generateBtn.disabled = false;
@@ -289,6 +440,7 @@ downloadAllBtn.addEventListener('click', () => {
 resetBtn.addEventListener('click', () => {
     uploadedImageFiles = [];
     generatedImages = [];
+    imageUrlsTextarea.value = '';
     updateImagesList();
     resultSection.classList.add('hidden');
     resultImagesContainer.classList.add('hidden');
@@ -298,6 +450,11 @@ resetBtn.addEventListener('click', () => {
     campaignTypeSelect.value = 'thanksgiving';
     customCampaignNameContainer.classList.add('hidden');
     customCampaignNameInput.value = '';
+    // ファイルアップロードモードに戻す
+    document.querySelector('input[name="imageInputType"][value="file"]').checked = true;
+    fileUploadSection.classList.remove('hidden');
+    urlInputSection.classList.add('hidden');
+    imageInputType = 'file';
     calculatePrices();
 });
 
