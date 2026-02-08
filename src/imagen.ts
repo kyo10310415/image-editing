@@ -1,5 +1,6 @@
 import { PredictionServiceClient } from '@google-cloud/aiplatform';
 import { google } from '@google-cloud/aiplatform/build/protos/protos';
+import * as fs from 'fs';
 
 // Vertex AI クライアントの初期化
 const projectId = process.env.GOOGLE_CLOUD_PROJECT || '';
@@ -38,8 +39,7 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
       'base64'
     ).toString('utf-8');
     
-    // 一時ファイルとして保存（メモリ内認証も可能）
-    const fs = require('fs');
+    // 一時ファイルとして保存
     const tmpPath = '/tmp/gcp-key.json';
     fs.writeFileSync(tmpPath, keyContent);
     credentials = tmpPath;

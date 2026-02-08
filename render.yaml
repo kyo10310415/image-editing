@@ -3,7 +3,7 @@ services:
     name: image-editing-system
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -15,4 +15,4 @@ services:
       - key: GOOGLE_CLOUD_LOCATION
         value: us-central1
       - key: GOOGLE_APPLICATION_CREDENTIALS
-        sync: false
+        value: ./gcp-key.json

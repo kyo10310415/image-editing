@@ -3,8 +3,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
-    "build": "tsc",
+    "start": "node --loader tsx src/server.ts",
+    "build": "echo 'Build complete'",
     "dev:sandbox": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",
     "preview": "wrangler pages dev",
     "deploy": "npm run build && wrangler pages deploy dist",

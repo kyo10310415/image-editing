@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from '@hono/node-server/serve-static'
-import { generateImageWithImagen } from './imagen'
+import { generateImageWithImagen } from './imagen.js'
 import 'dotenv/config'
 
 const app = new Hono()
