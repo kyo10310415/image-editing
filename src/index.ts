@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { generateImageWithImagen } from './imagen.js'
+import { editImageWithCanvas } from './canvas-editor.js'
 
 // Load .env file only in development
 if (process.env.NODE_ENV !== 'production') {
@@ -291,8 +292,60 @@ This is a precise text-only edit. Do not modify any visual design elements, colo
   }
 })
 
-// Vertex AI Imagen画像生成API
+// Canvas画像編集API（新しい実装）
 app.post('/api/execute-generation', async (c) => {
+  try {
+    const { prompt, imageUrl, discountRate, index, campaignTitle, regularPrice, hardPrice } = await c.req.json()
+    
+    if (!imageUrl) {
+      return c.json({ error: '画像URLは必須です' }, 400)
+    }
+
+    console.log(`Editing image ${index + 1} with Canvas...`)
+    console.log('Campaign:', campaignTitle)
+    console.log('Discount:', discountRate + '%')
+    console.log('Prices:', regularPrice, hardPrice)
+
+    // Canvas APIで画像編集（レイアウト完全保持）
+    const editedImageUrl = await editImageWithCanvas({
+      imageUrl,
+      campaignTitle: campaignTitle || '限定キャンペーン',
+      discountRate: Number(discountRate) || 0,
+      regularPrice: Number(regularPrice) || 4400,
+      hardPrice: Number(hardPrice) || 4950
+    })
+
+    console.log('Canvas editing completed, result size:', editedImageUrl?.length || 0)
+    console.log('Edited image URL preview:', editedImageUrl?.substring(0, 100) || 'undefined')
+
+    const response = {
+      success: true,
+      generated_images: [
+        {
+          url: editedImageUrl
+        }
+      ]
+    }
+    
+    console.log('Response structure:', JSON.stringify({
+      success: response.success,
+      generated_images_count: response.generated_images.length,
+      first_url_length: response.generated_images[0]?.url?.length || 0
+    }))
+
+    return c.json(response)
+
+  } catch (error) {
+    console.error('Canvas editing error:', error)
+    return c.json({ 
+      error: '画像編集中にエラーが発生しました',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+})
+
+// Vertex AI Imagen画像生成API（オプション：高度な編集用）
+app.post('/api/execute-generation-ai', async (c) => {
   try {
     const { prompt, imageUrl, discountRate, index } = await c.req.json()
     

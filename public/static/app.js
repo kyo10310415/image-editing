@@ -336,7 +336,7 @@ async function generateFromFiles(discountRate, campaignType, customCampaignName)
             }
         });
         
-        const { images, count } = response.data;
+        const { images, count, prices, campaignTitle } = response.data;
         
         loadingProgress.textContent = `${count}枚の画像を生成中...`;
         
@@ -346,11 +346,13 @@ async function generateFromFiles(discountRate, campaignType, customCampaignName)
             
             const { prompt, imageUrl, originalName } = images[i];
             
-            // バックエンド経由でNanoBanana APIを呼び出し
+            // Canvas APIで画像編集（レイアウト完全保持）
             const imageGenResponse = await axios.post('/api/execute-generation', {
-                prompt: prompt,
                 imageUrl: imageUrl,
                 discountRate: discountRate,
+                campaignTitle: campaignTitle,
+                regularPrice: prices.regular,
+                hardPrice: prices.hard,
                 index: i
             });
             
@@ -421,7 +423,7 @@ async function generateFromUrls(imageUrls, discountRate, campaignType, customCam
             customCampaignName: customCampaignName
         });
         
-        const { images, count } = response.data;
+        const { images, count, prices, campaignTitle } = response.data;
         
         loadingProgress.textContent = `${count}枚の画像を生成中...`;
         
@@ -431,11 +433,13 @@ async function generateFromUrls(imageUrls, discountRate, campaignType, customCam
             
             const { prompt, imageUrl, originalName } = images[i];
             
-            // バックエンド経由でNanoBanana APIを呼び出し
+            // Canvas APIで画像編集（レイアウト完全保持）
             const imageGenResponse = await axios.post('/api/execute-generation', {
-                prompt: prompt,
                 imageUrl: imageUrl,
                 discountRate: discountRate,
+                campaignTitle: campaignTitle,
+                regularPrice: prices.regular,
+                hardPrice: prices.hard,
                 index: i
             });
             
