@@ -57,17 +57,49 @@ export async function editImageWithOCR(params: EditImageParams): Promise<string>
     });
 
     console.log('✅ OCR completed');
-    console.log('📝 Detected text boxes:', ocrResult.data.words.length);
+    
+    // OCR結果のデバッグ出力
+    console.log('📊 OCR Result structure:', {
+      hasData: !!ocrResult.data,
+      hasWords: !!ocrResult.data?.words,
+      hasLines: !!ocrResult.data?.lines,
+      text: ocrResult.data?.text?.substring(0, 100)
+    });
+
+    // wordsが存在しない場合はlinesを使用
+    const words = ocrResult.data?.words || [];
+    const lines = ocrResult.data?.lines || [];
+    
+    console.log('📝 Detected text boxes:', words.length, 'words,', lines.length, 'lines');
 
     // 検出されたテキストボックスを解析
-    const textBoxes: TextBox[] = ocrResult.data.words.map(word => ({
-      text: word.text,
-      x: word.bbox.x0,
-      y: word.bbox.y0,
-      width: word.bbox.x1 - word.bbox.x0,
-      height: word.bbox.y1 - word.bbox.y0,
-      confidence: word.confidence
-    }));
+    let textBoxes: TextBox[] = [];
+    
+    if (words.length > 0) {
+      // wordsを使用
+      textBoxes = words.map(word => ({
+        text: word.text,
+        x: word.bbox.x0,
+        y: word.bbox.y0,
+        width: word.bbox.x1 - word.bbox.x0,
+        height: word.bbox.y1 - word.bbox.y0,
+        confidence: word.confidence
+      }));
+    } else if (lines.length > 0) {
+      // wordsがない場合はlinesを使用
+      textBoxes = lines.map(line => ({
+        text: line.text,
+        x: line.bbox.x0,
+        y: line.bbox.y0,
+        width: line.bbox.x1 - line.bbox.x0,
+        height: line.bbox.y1 - line.bbox.y0,
+        confidence: line.confidence
+      }));
+    } else {
+      console.warn('⚠️ No text detected by OCR, using fallback method');
+      // OCRが何も検出しなかった場合はフォールバック
+      return editImageWithSimpleCanvas(params);
+    }
 
     // デバッグ: 検出されたテキストを出力
     console.log('📝 Detected texts:');
@@ -268,4 +300,108 @@ export async function editImageWithFallback(params: EditImageParams): Promise<st
   // （固定座標版）
   
   return editImageWithOCR(params); // 一旦OCRを試みる
+}
+
+/**
+ * シンプルなCanvas編集（OCRなし、固定座標）
+ */
+async function editImageWithSimpleCanvas(params: EditImageParams): Promise<string> {
+  const { imageUrl, campaignTitle, discountRate, regularPrice, hardPrice } = params;
+
+  console.log('🎨 Using simple Canvas method without OCR');
+
+  try {
+    const image = await loadImage(imageUrl);
+    const canvas = createCanvas(image.width, image.height);
+    const ctx = canvas.getContext('2d');
+
+    // 元の画像を描画
+    ctx.drawImage(image, 0, 0);
+
+    // 画像サイズに応じてスケール調整
+    const scale = image.width / 1080; // 基準幅1080px
+
+    // 固定座標（元画像のレイアウトに基づく）
+    const areas = {
+      // キャンペーンタイトル（上部）
+      campaign: {
+        x: image.width * 0.15,
+        y: image.height * 0.08,
+        width: image.width * 0.7,
+        height: image.height * 0.1
+      },
+      // 割引率（左側の赤いラベル内）
+      discount: {
+        x: image.width * 0.18,
+        y: image.height * 0.35,
+        width: image.width * 0.15,
+        height: image.height * 0.08
+      },
+      // レギュラー価格（左下）
+      regularPrice: {
+        x: image.width * 0.48,
+        y: image.height * 0.61,
+        width: image.width * 0.15,
+        height: image.height * 0.05
+      },
+      // ハード価格（右下）
+      hardPrice: {
+        x: image.width * 0.48,
+        y: image.height * 0.78,
+        width: image.width * 0.15,
+        height: image.height * 0.05
+      }
+    };
+
+    // ゴールド背景色
+    const bgColor = { r: 189, g: 170, b: 124 };
+
+    // 各領域を編集
+    for (const [key, area] of Object.entries(areas)) {
+      // 背景色で塗りつぶし
+      ctx.fillStyle = `rgb(${bgColor.r}, ${bgColor.g}, ${bgColor.b})`;
+      ctx.fillRect(area.x, area.y, area.width, area.height);
+
+      // テキストを描画
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      switch (key) {
+        case 'campaign':
+          ctx.font = `bold ${Math.floor(36 * scale)}px Arial, sans-serif`;
+          ctx.fillText(campaignTitle, area.x + area.width / 2, area.y + area.height / 2);
+          break;
+
+        case 'discount':
+          ctx.font = `bold ${Math.floor(48 * scale)}px Arial`;
+          ctx.fillText(`${discountRate}%`, area.x + area.width / 2, area.y + area.height / 2 - 10 * scale);
+          ctx.font = `bold ${Math.floor(28 * scale)}px Arial`;
+          ctx.fillText('OFF', area.x + area.width / 2, area.y + area.height / 2 + 20 * scale);
+          break;
+
+        case 'regularPrice':
+          ctx.fillStyle = '#E60012';
+          ctx.font = `bold ${Math.floor(32 * scale)}px Arial`;
+          ctx.textAlign = 'left';
+          ctx.fillText(`¥${regularPrice.toLocaleString('ja-JP')}`, area.x, area.y + area.height / 2);
+          break;
+
+        case 'hardPrice':
+          ctx.fillStyle = '#E60012';
+          ctx.font = `bold ${Math.floor(32 * scale)}px Arial`;
+          ctx.textAlign = 'left';
+          ctx.fillText(`¥${hardPrice.toLocaleString('ja-JP')}`, area.x, area.y + area.height / 2);
+          break;
+      }
+    }
+
+    const result = canvas.toDataURL('image/png', 0.95);
+    console.log('✅ Simple Canvas editing completed');
+    return result;
+
+  } catch (error) {
+    console.error('❌ Simple Canvas error:', error);
+    throw error;
+  }
 }
