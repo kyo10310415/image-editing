@@ -1,8 +1,10 @@
 // DOMが完全に読み込まれてから実行
 document.addEventListener('DOMContentLoaded', function() {
-// グローバル変数
-let uploadedImageFiles = [];
-let imageInputType = 'file'; // 'file' or 'url'
+// グローバル変数（windowオブジェクトに追加してグローバルアクセス可能に）
+window.uploadedImageFiles = [];
+window.imageInputType = 'file'; // 'file' or 'url'
+let uploadedImageFiles = window.uploadedImageFiles;
+let imageInputType = window.imageInputType;
 
 // DOM要素
 const imageInputTypeRadios = document.getElementsByName('imageInputType');
@@ -33,7 +35,7 @@ const resetBtn = document.getElementById('resetBtn');
 // 画像入力タイプの切り替え
 imageInputTypeRadios.forEach(radio => {
     radio.addEventListener('change', (e) => {
-        imageInputType = e.target.value;
+        imageInputType = window.imageInputType = e.target.value;
         if (imageInputType === 'file') {
             fileUploadSection.classList.remove('hidden');
             urlInputSection.classList.add('hidden');
@@ -120,7 +122,7 @@ async function handleFileSelect(files) {
         }
     }
     
-    uploadedImageFiles = [...uploadedImageFiles, ...resizedFiles];
+    uploadedImageFiles = window.uploadedImageFiles = [...uploadedImageFiles, ...resizedFiles];
     
     updateImagesList();
     generateBtn.disabled = false;
@@ -242,7 +244,7 @@ window.removeImage = function(index) {
 
 // すべてクリア
 clearImagesBtn.addEventListener('click', () => {
-    uploadedImageFiles = [];
+    uploadedImageFiles = window.uploadedImageFiles = [];
     updateImagesList();
     generateBtn.disabled = true;
 });
@@ -549,7 +551,7 @@ downloadAllBtn.addEventListener('click', () => {
 
 // リセット
 resetBtn.addEventListener('click', () => {
-    uploadedImageFiles = [];
+    uploadedImageFiles = window.uploadedImageFiles = [];
     generatedImages = [];
     imageUrlsTextarea.value = '';
     updateImagesList();
@@ -565,7 +567,7 @@ resetBtn.addEventListener('click', () => {
     document.querySelector('input[name="imageInputType"][value="file"]').checked = true;
     fileUploadSection.classList.remove('hidden');
     urlInputSection.classList.add('hidden');
-    imageInputType = 'file';
+    imageInputType = window.imageInputType = 'file';
     calculatePrices();
 });
 
@@ -589,11 +591,12 @@ window.openCoordinateSetup = function() {
     console.log('Input type:', inputType);
     
     if (inputType === 'file') {
-        // ファイルアップロードモード
-        const fileInput = document.getElementById('imageUpload');
-        console.log('File input files:', fileInput?.files);
+        // ファイルアップロードモード - window.uploadedImageFilesを使用
+        const files = window.uploadedImageFiles || [];
+        console.log('Uploaded image files:', files);
+        console.log('Files count:', files.length);
         
-        if (!fileInput || fileInput.files.length === 0) {
+        if (files.length === 0) {
             alert('先に画像をアップロードしてください');
             return;
         }
@@ -608,7 +611,7 @@ window.openCoordinateSetup = function() {
             console.error('❌ File read error:', e);
             alert('画像の読み込みに失敗しました');
         };
-        reader.readAsDataURL(fileInput.files[0]);
+        reader.readAsDataURL(files[0]);
     } else {
         // URL入力モード
         const urlInput = document.getElementById('imageUrls');
