@@ -127,7 +127,7 @@ async function handleFileSelect(files) {
 }
 
 // 画像リサイズ関数
-function resizeImage(file, maxWidth = 1920) {
+function resizeImage(file, maxWidth = 1280) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         
@@ -139,10 +139,14 @@ function resizeImage(file, maxWidth = 1920) {
                 let width = img.width;
                 let height = img.height;
                 
-                // 画像が最大幅より大きい場合のみリサイズ
-                if (width > maxWidth) {
-                    height = (height * maxWidth) / width;
-                    width = maxWidth;
+                // 画像が最大幅より大きい場合、またはファイルサイズが大きい場合にリサイズ
+                const needsResize = width > maxWidth || file.size > 500 * 1024; // 500KB以上はリサイズ
+                
+                if (needsResize) {
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
                 }
                 
                 canvas.width = width;
@@ -152,11 +156,14 @@ function resizeImage(file, maxWidth = 1920) {
                 ctx.drawImage(img, 0, 0, width, height);
                 
                 // Canvasから圧縮されたBlobを取得
+                // ファイルサイズに応じて品質を調整
+                const quality = file.size > 1024 * 1024 ? 0.7 : 0.85;
+                
                 canvas.toBlob((blob) => {
                     if (blob) {
                         // Blobをファイルオブジェクトに変換
                         const resizedFile = new File([blob], file.name, {
-                            type: file.type,
+                            type: 'image/jpeg', // JPEGに統一して圧縮率を上げる
                             lastModified: Date.now()
                         });
                         
@@ -168,12 +175,13 @@ function resizeImage(file, maxWidth = 1920) {
                         console.log(`  リサイズ後: ${resizedSizeMB} MB`);
                         console.log(`  元の解像度: ${img.width}x${img.height}`);
                         console.log(`  リサイズ後: ${width}x${height}`);
+                        console.log(`  品質: ${quality * 100}%`);
                         
                         resolve(resizedFile);
                     } else {
                         reject(new Error('Canvas to Blob conversion failed'));
                     }
-                }, file.type, 0.9); // 品質90%で圧縮
+                }, 'image/jpeg', quality); // JPEGで圧縮
             };
             
             img.onerror = () => {

@@ -185,26 +185,22 @@ app.post('/api/generate-batch', async (c) => {
       const base64Image = btoa(binary)
       const imageUrl = `data:${imageFile.type};base64,${base64Image}`
 
-      const prompt = `This is a Japanese promotional campaign image for a scalp brush product. 
-The image should maintain the exact same layout and design as the reference image.
+      const prompt = `Edit this Japanese promotional campaign image for a scalp brush product.
 
-Campaign title at the top: "${campaignTitle}"
-Product name: "スカルプブラシ コム"
-
-Discount section with red arrow label showing: "${discountRate}% OFF"
-
-Product pricing:
-- Regular model (コムレギュラー): Original price ¥4,400 (税込) → Special price ¥${regularPrice.toLocaleString('ja-JP')} (税込)
-- Hard model (コムハード): Original price ¥4,950 (税込) → Special price ¥${hardPrice.toLocaleString('ja-JP')} (税込)
-
-Keep all other elements exactly the same including:
+KEEP THE EXACT SAME:
+- All layout, design, and composition
 - Product images (white and brown brushes)
-- Layout and positioning
-- Typography and fonts
-- Color scheme
+- Background colors and graphics
+- All fonts and typography styles
 - Footer text: "※割引率は変更になる可能性がございます"
 
-IMPORTANT: Only change the discount percentage and calculated prices. Do NOT change any other design elements.`
+ONLY CHANGE THESE TEXT ELEMENTS:
+1. Campaign title at top: "${campaignTitle}"
+2. Discount label: "${discountRate}% OFF"
+3. Regular model price: ¥4,400 (税込) → ¥${regularPrice.toLocaleString('ja-JP')} (税込)
+4. Hard model price: ¥4,950 (税込) → ¥${hardPrice.toLocaleString('ja-JP')} (税込)
+
+This is a precise text-only edit. Do not modify any visual design elements, colors, or layout.`
 
       return {
         prompt,
@@ -253,26 +249,22 @@ app.post('/api/generate-batch-url', async (c) => {
 
     // 各画像URLのプロンプトを生成
     const imageData = imageUrls.map((imageUrl: string, index: number) => {
-      const prompt = `This is a Japanese promotional campaign image for a scalp brush product. 
-The image should maintain the exact same layout and design as the reference image.
+      const prompt = `Edit this Japanese promotional campaign image for a scalp brush product.
 
-Campaign title at the top: "${campaignTitle}"
-Product name: "スカルプブラシ コム"
-
-Discount section with red arrow label showing: "${discountRate}% OFF"
-
-Product pricing:
-- Regular model (コムレギュラー): Original price ¥4,400 (税込) → Special price ¥${regularPrice.toLocaleString('ja-JP')} (税込)
-- Hard model (コムハード): Original price ¥4,950 (税込) → Special price ¥${hardPrice.toLocaleString('ja-JP')} (税込)
-
-Keep all other elements exactly the same including:
+KEEP THE EXACT SAME:
+- All layout, design, and composition
 - Product images (white and brown brushes)
-- Layout and positioning
-- Typography and fonts
-- Color scheme
+- Background colors and graphics
+- All fonts and typography styles
 - Footer text: "※割引率は変更になる可能性がございます"
 
-IMPORTANT: Only change the discount percentage and calculated prices. Do NOT change any other design elements.`
+ONLY CHANGE THESE TEXT ELEMENTS:
+1. Campaign title at top: "${campaignTitle}"
+2. Discount label: "${discountRate}% OFF"
+3. Regular model price: ¥4,400 (税込) → ¥${regularPrice.toLocaleString('ja-JP')} (税込)
+4. Hard model price: ¥4,950 (税込) → ¥${hardPrice.toLocaleString('ja-JP')} (税込)
+
+This is a precise text-only edit. Do not modify any visual design elements, colors, or layout.`
 
       return {
         prompt,
