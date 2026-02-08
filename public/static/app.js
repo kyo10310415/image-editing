@@ -347,11 +347,18 @@ async function generateFromFiles(discountRate, campaignType, customCampaignName)
             });
             
             if (imageGenResponse.data && imageGenResponse.data.success) {
-                generatedImages.push({
-                    url: imageGenResponse.data.imageUrl,
-                    originalName: originalName,
-                    index: i
-                });
+                // バックエンドのレスポンス形式: { success: true, generated_images: [{ url: "..." }] }
+                const generatedUrl = imageGenResponse.data.generated_images?.[0]?.url;
+                
+                if (generatedUrl) {
+                    generatedImages.push({
+                        url: generatedUrl,
+                        originalName: originalName,
+                        index: i
+                    });
+                } else {
+                    console.error('Generated URL is missing in response:', imageGenResponse.data);
+                }
             }
         }
         
@@ -425,11 +432,18 @@ async function generateFromUrls(imageUrls, discountRate, campaignType, customCam
             });
             
             if (imageGenResponse.data && imageGenResponse.data.success) {
-                generatedImages.push({
-                    url: imageGenResponse.data.imageUrl,
-                    originalName: originalName,
-                    index: i
-                });
+                // バックエンドのレスポンス形式: { success: true, generated_images: [{ url: "..." }] }
+                const generatedUrl = imageGenResponse.data.generated_images?.[0]?.url;
+                
+                if (generatedUrl) {
+                    generatedImages.push({
+                        url: generatedUrl,
+                        originalName: originalName,
+                        index: i
+                    });
+                } else {
+                    console.error('Generated URL is missing in response:', imageGenResponse.data);
+                }
             }
         }
         
