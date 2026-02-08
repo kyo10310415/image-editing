@@ -14,11 +14,13 @@
     "test": "curl http://localhost:3000"
   },
   "dependencies": {
+    "@canvas/image": "^2.0.0",
     "@google-cloud/aiplatform": "^6.4.0",
     "@hono/node-server": "^1.19.9",
     "canvas": "^3.2.1",
     "dotenv": "^17.2.4",
     "hono": "^4.11.8",
+    "tesseract.js": "^7.0.0",
     "tsx": "^4.21.0"
   },
   "devDependencies": {

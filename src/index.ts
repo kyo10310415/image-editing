@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { generateImageWithImagen } from './imagen.js'
 import { editImageWithCanvas } from './canvas-editor.js'
+import { editImageWithOCR } from './ocr-canvas-editor.js'
 
 // Load .env file only in development
 if (process.env.NODE_ENV !== 'production') {
@@ -292,7 +293,7 @@ This is a precise text-only edit. Do not modify any visual design elements, colo
   }
 })
 
-// Canvas画像編集API（新しい実装）
+// OCR + Canvas画像編集API（新しい高度な実装）
 app.post('/api/execute-generation', async (c) => {
   try {
     const { prompt, imageUrl, discountRate, index, campaignTitle, regularPrice, hardPrice } = await c.req.json()
@@ -301,13 +302,13 @@ app.post('/api/execute-generation', async (c) => {
       return c.json({ error: '画像URLは必須です' }, 400)
     }
 
-    console.log(`Editing image ${index + 1} with Canvas...`)
+    console.log(`Editing image ${index + 1} with OCR + Canvas...`)
     console.log('Campaign:', campaignTitle)
     console.log('Discount:', discountRate + '%')
     console.log('Prices:', regularPrice, hardPrice)
 
-    // Canvas APIで画像編集（レイアウト完全保持）
-    const editedImageUrl = await editImageWithCanvas({
+    // OCR + Canvas APIで画像編集（テキスト位置自動検出）
+    const editedImageUrl = await editImageWithOCR({
       imageUrl,
       campaignTitle: campaignTitle || '限定キャンペーン',
       discountRate: Number(discountRate) || 0,
@@ -315,7 +316,7 @@ app.post('/api/execute-generation', async (c) => {
       hardPrice: Number(hardPrice) || 4950
     })
 
-    console.log('Canvas editing completed, result size:', editedImageUrl?.length || 0)
+    console.log('OCR + Canvas editing completed, result size:', editedImageUrl?.length || 0)
     console.log('Edited image URL preview:', editedImageUrl?.substring(0, 100) || 'undefined')
 
     const response = {
@@ -336,7 +337,7 @@ app.post('/api/execute-generation', async (c) => {
     return c.json(response)
 
   } catch (error) {
-    console.error('Canvas editing error:', error)
+    console.error('OCR + Canvas editing error:', error)
     return c.json({ 
       error: '画像編集中にエラーが発生しました',
       details: error instanceof Error ? error.message : 'Unknown error'
