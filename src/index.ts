@@ -534,10 +534,17 @@ app.get('/', (c) => {
                             </div>
                         </div>
                         
-                        <button id="generateBtn" disabled class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
-                            <i class="fas fa-magic mr-2"></i>
-                            画像を生成
-                        </button>
+                        <div class="flex gap-3 mt-4">
+                            <button onclick="openCoordinateSetup()" 
+                                    class="flex-1 bg-gray-600 text-white font-bold py-4 rounded-lg hover:bg-gray-700 transition-all shadow-lg">
+                                <i class="fas fa-crosshairs mr-2"></i>
+                                座標を設定
+                            </button>
+                            <button id="generateBtn" disabled class="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+                                <i class="fas fa-magic mr-2"></i>
+                                画像を生成
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -595,7 +602,220 @@ app.get('/', (c) => {
             </div>
         </div>
         
+        <!-- 座標設定モーダル -->
+        <div id="coordinateModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50" style="display: none;">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+                <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-800">
+                        <i class="fas fa-crosshairs mr-2 text-indigo-600"></i>
+                        座標設定
+                    </h2>
+                    <button onclick="closeCoordinateModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <!-- 左側：プレビューキャンバス -->
+                        <div class="md:col-span-2">
+                            <div class="mb-4">
+                                <h3 class="font-semibold text-gray-700 mb-2">1. 編集する領域を選択</h3>
+                                <p class="text-sm text-gray-600 mb-3">
+                                    マウスでドラッグして矩形を描画してください。自動的に次の領域に移動します。
+                                </p>
+                                <div class="flex gap-2 flex-wrap">
+                                    <button class="area-btn active" data-area="campaign" onclick="selectArea('campaign')">
+                                        <span class="color-dot" style="background: #FF6B6B"></span>
+                                        キャンペーン名
+                                    </button>
+                                    <button class="area-btn" data-area="discount" onclick="selectArea('discount')">
+                                        <span class="color-dot" style="background: #4ECDC4"></span>
+                                        割引率
+                                    </button>
+                                    <button class="area-btn" data-area="regularPrice" onclick="selectArea('regularPrice')">
+                                        <span class="color-dot" style="background: #FFD93D"></span>
+                                        レギュラー価格
+                                    </button>
+                                    <button class="area-btn" data-area="hardPrice" onclick="selectArea('hardPrice')">
+                                        <span class="color-dot" style="background: #6BCB77"></span>
+                                        ハード価格
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-50">
+                                <canvas id="coordinateCanvas" class="cursor-crosshair"></canvas>
+                            </div>
+                            
+                            <div class="mt-4 flex gap-2">
+                                <button onclick="resetCoordinates()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                                    <i class="fas fa-undo mr-2"></i>
+                                    リセット
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 右側：座標表示とテンプレート管理 -->
+                        <div class="space-y-6">
+                            <!-- 座標プレビュー -->
+                            <div>
+                                <h3 class="font-semibold text-gray-700 mb-2">2. 選択した座標</h3>
+                                <div id="coordinatePreview" class="space-y-2 text-sm">
+                                    <p class="text-gray-500">領域を選択してください</p>
+                                </div>
+                            </div>
+                            
+                            <!-- テンプレート保存 -->
+                            <div class="border-t border-gray-200 pt-4">
+                                <h3 class="font-semibold text-gray-700 mb-2">3. テンプレート保存</h3>
+                                <div class="space-y-2">
+                                    <input type="text" 
+                                           id="templateName" 
+                                           placeholder="テンプレート名（例：楽天バナー用）" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <button onclick="saveCurrentTemplate()" 
+                                            class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                                        <i class="fas fa-save mr-2"></i>
+                                        テンプレート保存
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 保存済みテンプレート -->
+                            <div class="border-t border-gray-200 pt-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h3 class="font-semibold text-gray-700">保存済みテンプレート</h3>
+                                    <div class="flex gap-1">
+                                        <button onclick="exportTemplates()" 
+                                                class="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                                                title="エクスポート">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button onclick="importTemplates()" 
+                                                class="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                                                title="インポート">
+                                            <i class="fas fa-upload"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="templateList" class="space-y-2 max-h-64 overflow-y-auto">
+                                    <p class="text-gray-500 text-sm">保存されたテンプレートはありません</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-6 border-t border-gray-200 flex justify-end gap-4">
+                    <button onclick="closeCoordinateModal()" 
+                            class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                        キャンセル
+                    </button>
+                    <button onclick="applyCoordinates()" 
+                            class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                        <i class="fas fa-check mr-2"></i>
+                        この座標で生成
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+            .area-btn {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 12px;
+                border: 2px solid #e5e7eb;
+                border-radius: 8px;
+                background: white;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .area-btn:hover {
+                border-color: #6366f1;
+                background: #f0f9ff;
+            }
+            .area-btn.active {
+                border-color: #6366f1;
+                background: #eef2ff;
+                font-weight: 600;
+            }
+            .color-dot {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            .coordinate-item {
+                padding: 10px;
+                background: #f9fafb;
+                border-radius: 6px;
+                margin-bottom: 8px;
+            }
+            .coordinate-item strong {
+                display: block;
+                margin-bottom: 4px;
+            }
+            .coordinate-values {
+                font-size: 12px;
+                color: #6b7280;
+                font-family: monospace;
+            }
+            .template-item {
+                padding: 12px;
+                background: #f9fafb;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .template-info {
+                flex: 1;
+            }
+            .template-name {
+                display: block;
+                font-weight: 600;
+                color: #1f2937;
+            }
+            .template-date, .template-size {
+                font-size: 11px;
+                color: #6b7280;
+                margin-right: 8px;
+            }
+            .template-actions {
+                display: flex;
+                gap: 4px;
+            }
+            .btn-load, .btn-delete {
+                padding: 6px 12px;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 12px;
+                transition: all 0.2s;
+            }
+            .btn-load {
+                background: #6366f1;
+                color: white;
+            }
+            .btn-load:hover {
+                background: #4f46e5;
+            }
+            .btn-delete {
+                background: #ef4444;
+                color: white;
+            }
+            .btn-delete:hover {
+                background: #dc2626;
+            }
+        </style>
+        
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+        <script src="/static/coordinate-selector.js"></script>
+        <script src="/static/template-manager.js"></script>
         <script src="/static/app.js?v=${Date.now()}"></script>
     </body>
     </html>

@@ -551,3 +551,112 @@ resetBtn.addEventListener('click', () => {
 calculatePrices();
 
 }); // DOMContentLoaded終了
+
+// ======================================
+// 座標設定モーダル関連
+// ======================================
+
+let currentCoordinates = null;
+
+// 座標設定モーダルを開く
+window.openCoordinateSetup = function() {
+    // 画像が選択されているか確認
+    if (imageInputType === 'file') {
+        if (uploadedImageFiles.length === 0) {
+            alert('先に画像をアップロードしてください');
+            return;
+        }
+        // 最初の画像を使用
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            openModalWithImage(e.target.result);
+        };
+        reader.readAsDataURL(uploadedImageFiles[0]);
+    } else {
+        // URL入力モード
+        const urls = imageUrlsInput.value.trim().split('\n').filter(url => url);
+        if (urls.length === 0) {
+            alert('先に画像URLを入力してください');
+            return;
+        }
+        openModalWithImage(urls[0]);
+    }
+};
+
+function openModalWithImage(imageUrl) {
+    const modal = document.getElementById('coordinateModal');
+    modal.style.display = 'flex';
+    
+    // CoordinateSelectorを初期化
+    if (!window.coordinateSelector) {
+        window.coordinateSelector = new CoordinateSelector('coordinateCanvas', 'coordinatePreview');
+    }
+    
+    // 画像を読み込む
+    window.coordinateSelector.loadImage(imageUrl).then(() => {
+        console.log('✅ 画像を読み込みました');
+    }).catch(error => {
+        console.error('❌ 画像の読み込みに失敗:', error);
+        alert('画像の読み込みに失敗しました');
+        closeCoordinateModal();
+    });
+}
+
+// 座標設定モーダルを閉じる
+window.closeCoordinateModal = function() {
+    const modal = document.getElementById('coordinateModal');
+    modal.style.display = 'none';
+};
+
+// 領域を選択
+window.selectArea = function(areaName) {
+    if (!window.coordinateSelector) return;
+    
+    window.coordinateSelector.setCurrentArea(areaName);
+    
+    // ボタンのアクティブ状態を更新
+    document.querySelectorAll('.area-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-area="${areaName}"]`)?.classList.add('active');
+};
+
+// 座標をリセット
+window.resetCoordinates = function() {
+    if (!window.coordinateSelector) return;
+    
+    const confirmed = confirm('選択した座標をすべてリセットしますか？');
+    if (confirmed) {
+        window.coordinateSelector.reset();
+    }
+};
+
+// 座標を適用して生成
+window.applyCoordinates = function() {
+    if (!window.coordinateSelector) {
+        alert('座標が設定されていません');
+        return;
+    }
+    
+    const coordinates = window.coordinateSelector.getCoordinates();
+    
+    // 未設定の領域を確認
+    const unsetAreas = Object.entries(coordinates.areas)
+        .filter(([_, area]) => area === null)
+        .map(([name, _]) => window.coordinateSelector.getAreaLabel(name));
+    
+    if (unsetAreas.length > 0) {
+        const confirmed = confirm(`以下の領域が未設定です。このまま生成しますか？\n\n${unsetAreas.join('\n')}`);
+        if (!confirmed) return;
+    }
+    
+    // 座標を保存
+    currentCoordinates = coordinates;
+    console.log('✅ 座標を保存しました:', currentCoordinates);
+    
+    // モーダルを閉じる
+    closeCoordinateModal();
+    
+    alert('✅ 座標を設定しました。「画像を生成」ボタンをクリックして生成を開始してください。');
+};
+
