@@ -582,25 +582,50 @@ let currentCoordinates = null;
 
 // 座標設定モーダルを開く
 window.openCoordinateSetup = function() {
-    // 画像が選択されているか確認
-    if (imageInputType === 'file') {
-        if (uploadedImageFiles.length === 0) {
+    console.log('🔍 Opening coordinate setup...');
+    
+    // グローバル変数を明示的に参照
+    const inputType = window.imageInputType || document.querySelector('input[name="imageInputType"]:checked')?.value || 'file';
+    console.log('Input type:', inputType);
+    
+    if (inputType === 'file') {
+        // ファイルアップロードモード
+        const fileInput = document.getElementById('imageUpload');
+        console.log('File input files:', fileInput?.files);
+        
+        if (!fileInput || fileInput.files.length === 0) {
             alert('先に画像をアップロードしてください');
             return;
         }
+        
         // 最初の画像を使用
         const reader = new FileReader();
         reader.onload = (e) => {
+            console.log('✅ Image loaded from file');
             openModalWithImage(e.target.result);
         };
-        reader.readAsDataURL(uploadedImageFiles[0]);
+        reader.onerror = (e) => {
+            console.error('❌ File read error:', e);
+            alert('画像の読み込みに失敗しました');
+        };
+        reader.readAsDataURL(fileInput.files[0]);
     } else {
         // URL入力モード
-        const urls = imageUrlsInput.value.trim().split('\n').filter(url => url);
-        if (urls.length === 0) {
+        const urlInput = document.getElementById('imageUrls');
+        console.log('URL input value:', urlInput?.value);
+        
+        if (!urlInput || !urlInput.value.trim()) {
             alert('先に画像URLを入力してください');
             return;
         }
+        
+        const urls = urlInput.value.trim().split('\n').filter(url => url);
+        if (urls.length === 0) {
+            alert('有効な画像URLを入力してください');
+            return;
+        }
+        
+        console.log('✅ Using URL:', urls[0]);
         openModalWithImage(urls[0]);
     }
 };
