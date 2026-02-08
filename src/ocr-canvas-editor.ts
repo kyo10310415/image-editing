@@ -304,6 +304,7 @@ export async function editImageWithFallback(params: EditImageParams): Promise<st
 
 /**
  * シンプルなCanvas編集（OCRなし、固定座標）
+ * 元画像 https://www.genspark.ai/api/files/s/gnHscP8A のレイアウトに基づく
  */
 async function editImageWithSimpleCanvas(params: EditImageParams): Promise<string> {
   const { imageUrl, campaignTitle, discountRate, regularPrice, hardPrice } = params;
@@ -318,86 +319,85 @@ async function editImageWithSimpleCanvas(params: EditImageParams): Promise<strin
     // 元の画像を描画
     ctx.drawImage(image, 0, 0);
 
-    // 画像サイズに応じてスケール調整
-    const scale = image.width / 1080; // 基準幅1080px
+    console.log('📐 Image dimensions:', image.width, 'x', image.height);
 
-    // 固定座標（元画像のレイアウトに基づく）
-    const areas = {
-      // キャンペーンタイトル（上部）
-      campaign: {
-        x: image.width * 0.15,
-        y: image.height * 0.08,
-        width: image.width * 0.7,
-        height: image.height * 0.1
-      },
-      // 割引率（左側の赤いラベル内）
-      discount: {
-        x: image.width * 0.18,
-        y: image.height * 0.35,
-        width: image.width * 0.15,
-        height: image.height * 0.08
-      },
-      // レギュラー価格（左下）
-      regularPrice: {
-        x: image.width * 0.48,
-        y: image.height * 0.61,
-        width: image.width * 0.15,
-        height: image.height * 0.05
-      },
-      // ハード価格（右下）
-      hardPrice: {
-        x: image.width * 0.48,
-        y: image.height * 0.78,
-        width: image.width * 0.15,
-        height: image.height * 0.05
-      }
-    };
+    // ゴールド背景色（元画像から抽出）
+    const goldBg = 'rgb(189, 170, 124)';
+    const whiteBg = 'rgb(255, 255, 255)';
+    const redLabel = 'rgb(230, 0, 18)';
 
-    // ゴールド背景色
-    const bgColor = { r: 189, g: 170, b: 124 };
+    // 1. キャンペーンタイトルエリア（上部中央の白テキスト）
+    // 座標: 中央、上部
+    ctx.fillStyle = goldBg;
+    const titleX = image.width / 2 - 400;
+    const titleY = 60;
+    const titleWidth = 800;
+    const titleHeight = 80;
+    ctx.fillRect(titleX, titleY, titleWidth, titleHeight);
+    
+    // タイトルを描画
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 52px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(campaignTitle, image.width / 2, titleY + titleHeight / 2);
 
-    // 各領域を編集
-    for (const [key, area] of Object.entries(areas)) {
-      // 背景色で塗りつぶし
-      ctx.fillStyle = `rgb(${bgColor.r}, ${bgColor.g}, ${bgColor.b})`;
-      ctx.fillRect(area.x, area.y, area.width, area.height);
+    // 2. 赤いラベルの割引率エリア
+    // 座標: 左側の赤いラベル内
+    const discountX = 143;
+    const discountY = 312;
+    const discountWidth = 320;
+    const discountHeight = 130;
+    
+    // 赤背景を再描画（元のラベルを保持）
+    // テキスト部分のみクリア
+    ctx.fillStyle = redLabel;
+    ctx.fillRect(discountX + 50, discountY + 10, discountWidth - 100, discountHeight - 20);
+    
+    // 割引率テキスト
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 72px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${discountRate}`, discountX + discountWidth / 2, discountY + 50);
+    ctx.font = 'bold 40px Arial';
+    ctx.fillText('%OFF', discountX + discountWidth / 2, discountY + 95);
 
-      // テキストを描画
-      ctx.fillStyle = '#FFFFFF';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+    // 3. レギュラー価格エリア（左下、ピンクのラベル下）
+    // 座標: "コム レギュラー" の下
+    const regPriceX = 517;
+    const regPriceY = 563;
+    const priceWidth = 200;
+    const priceHeight = 60;
+    
+    // 白背景で既存価格をクリア
+    ctx.fillStyle = whiteBg;
+    ctx.fillRect(regPriceX, regPriceY, priceWidth, priceHeight);
+    
+    // 新しい価格を描画（赤字、太字）
+    ctx.fillStyle = redLabel;
+    ctx.font = 'bold 44px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`¥${regularPrice.toLocaleString('ja-JP')}`, regPriceX, regPriceY + 40);
 
-      switch (key) {
-        case 'campaign':
-          ctx.font = `bold ${Math.floor(36 * scale)}px Arial, sans-serif`;
-          ctx.fillText(campaignTitle, area.x + area.width / 2, area.y + area.height / 2);
-          break;
-
-        case 'discount':
-          ctx.font = `bold ${Math.floor(48 * scale)}px Arial`;
-          ctx.fillText(`${discountRate}%`, area.x + area.width / 2, area.y + area.height / 2 - 10 * scale);
-          ctx.font = `bold ${Math.floor(28 * scale)}px Arial`;
-          ctx.fillText('OFF', area.x + area.width / 2, area.y + area.height / 2 + 20 * scale);
-          break;
-
-        case 'regularPrice':
-          ctx.fillStyle = '#E60012';
-          ctx.font = `bold ${Math.floor(32 * scale)}px Arial`;
-          ctx.textAlign = 'left';
-          ctx.fillText(`¥${regularPrice.toLocaleString('ja-JP')}`, area.x, area.y + area.height / 2);
-          break;
-
-        case 'hardPrice':
-          ctx.fillStyle = '#E60012';
-          ctx.font = `bold ${Math.floor(32 * scale)}px Arial`;
-          ctx.textAlign = 'left';
-          ctx.fillText(`¥${hardPrice.toLocaleString('ja-JP')}`, area.x, area.y + area.height / 2);
-          break;
-      }
-    }
+    // 4. ハード価格エリア（右下、ピンクのラベル下）
+    // 座標: "コム ハード" の下
+    const hardPriceX = 517;
+    const hardPriceY = 720;
+    
+    // 白背景で既存価格をクリア
+    ctx.fillStyle = whiteBg;
+    ctx.fillRect(hardPriceX, hardPriceY, priceWidth, priceHeight);
+    
+    // 新しい価格を描画（赤字、太字）
+    ctx.fillStyle = redLabel;
+    ctx.font = 'bold 44px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`¥${hardPrice.toLocaleString('ja-JP')}`, hardPriceX, hardPriceY + 40);
 
     const result = canvas.toDataURL('image/png', 0.95);
     console.log('✅ Simple Canvas editing completed');
+    console.log('📊 Result size:', result.length, 'characters');
+    
     return result;
 
   } catch (error) {
