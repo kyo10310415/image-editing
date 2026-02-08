@@ -346,15 +346,26 @@ async function generateFromFiles(discountRate, campaignType, customCampaignName)
             
             const { prompt, imageUrl, originalName } = images[i];
             
-            // Canvas APIで画像編集（レイアウト完全保持）
-            const imageGenResponse = await axios.post('/api/execute-generation', {
+            // 座標データを準備
+            const requestData = {
                 imageUrl: imageUrl,
                 discountRate: discountRate,
                 campaignTitle: campaignTitle,
                 regularPrice: prices.regular,
                 hardPrice: prices.hard,
                 index: i
-            });
+            };
+            
+            // 座標が設定されている場合は追加
+            if (window.currentCoordinates && window.currentCoordinates.areas) {
+                requestData.coordinates = window.currentCoordinates.areas;
+                console.log('📍 Using custom coordinates:', requestData.coordinates);
+            } else {
+                console.log('⚠️ No custom coordinates, using auto-detection');
+            }
+            
+            // Canvas APIで画像編集（座標指定 or 自動検出）
+            const imageGenResponse = await axios.post('/api/execute-generation', requestData);
             
             if (imageGenResponse.data && imageGenResponse.data.success) {
                 // バックエンドのレスポンス形式: { success: true, generated_images: [{ url: "..." }] }
@@ -433,15 +444,26 @@ async function generateFromUrls(imageUrls, discountRate, campaignType, customCam
             
             const { prompt, imageUrl, originalName } = images[i];
             
-            // Canvas APIで画像編集（レイアウト完全保持）
-            const imageGenResponse = await axios.post('/api/execute-generation', {
+            // 座標データを準備
+            const requestData = {
                 imageUrl: imageUrl,
                 discountRate: discountRate,
                 campaignTitle: campaignTitle,
                 regularPrice: prices.regular,
                 hardPrice: prices.hard,
                 index: i
-            });
+            };
+            
+            // 座標が設定されている場合は追加
+            if (window.currentCoordinates && window.currentCoordinates.areas) {
+                requestData.coordinates = window.currentCoordinates.areas;
+                console.log('📍 Using custom coordinates:', requestData.coordinates);
+            } else {
+                console.log('⚠️ No custom coordinates, using auto-detection');
+            }
+            
+            // Canvas APIで画像編集（座標指定 or 自動検出）
+            const imageGenResponse = await axios.post('/api/execute-generation', requestData);
             
             if (imageGenResponse.data && imageGenResponse.data.success) {
                 // バックエンドのレスポンス形式: { success: true, generated_images: [{ url: "..." }] }

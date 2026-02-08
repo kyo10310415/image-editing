@@ -4,6 +4,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { generateImageWithImagen } from './imagen.js'
 import { editImageWithCanvas } from './canvas-editor.js'
 import { editImageWithOCR } from './ocr-canvas-editor.js'
+import { editImageWithUserCoordinates } from './coordinate-canvas-editor.js'
 
 // Load .env file only in development
 if (process.env.NODE_ENV !== 'production') {
@@ -293,30 +294,49 @@ This is a precise text-only edit. Do not modify any visual design elements, colo
   }
 })
 
-// OCR + Canvas画像編集API（新しい高度な実装）
+// 画像編集API（座標指定 or 自動検出）
 app.post('/api/execute-generation', async (c) => {
   try {
-    const { prompt, imageUrl, discountRate, index, campaignTitle, regularPrice, hardPrice } = await c.req.json()
+    const { prompt, imageUrl, discountRate, index, campaignTitle, regularPrice, hardPrice, coordinates } = await c.req.json()
     
     if (!imageUrl) {
       return c.json({ error: '画像URLは必須です' }, 400)
     }
 
-    console.log(`Editing image ${index + 1} with OCR + Canvas...`)
+    console.log(`Editing image ${index + 1}...`)
     console.log('Campaign:', campaignTitle)
     console.log('Discount:', discountRate + '%')
     console.log('Prices:', regularPrice, hardPrice)
+    
+    let editedImageUrl: string;
 
-    // OCR + Canvas APIで画像編集（テキスト位置自動検出）
-    const editedImageUrl = await editImageWithOCR({
-      imageUrl,
-      campaignTitle: campaignTitle || '限定キャンペーン',
-      discountRate: Number(discountRate) || 0,
-      regularPrice: Number(regularPrice) || 4400,
-      hardPrice: Number(hardPrice) || 4950
-    })
+    // 座標が指定されている場合は座標ベースで編集
+    if (coordinates && Object.keys(coordinates).length > 0) {
+      console.log('🎯 Using user-specified coordinates')
+      console.log('Coordinates:', JSON.stringify(coordinates))
+      
+      editedImageUrl = await editImageWithUserCoordinates({
+        imageUrl,
+        campaignTitle: campaignTitle || '限定キャンペーン',
+        discountRate: Number(discountRate) || 0,
+        regularPrice: Number(regularPrice) || 4400,
+        hardPrice: Number(hardPrice) || 4950,
+        coordinates
+      })
+    } else {
+      // 座標が指定されていない場合はOCR自動検出
+      console.log('🔍 Using OCR auto-detection (no coordinates provided)')
+      
+      editedImageUrl = await editImageWithOCR({
+        imageUrl,
+        campaignTitle: campaignTitle || '限定キャンペーン',
+        discountRate: Number(discountRate) || 0,
+        regularPrice: Number(regularPrice) || 4400,
+        hardPrice: Number(hardPrice) || 4950
+      })
+    }
 
-    console.log('OCR + Canvas editing completed, result size:', editedImageUrl?.length || 0)
+    console.log('✅ Editing completed, result size:', editedImageUrl?.length || 0)
     console.log('Edited image URL preview:', editedImageUrl?.substring(0, 100) || 'undefined')
 
     const response = {
@@ -337,7 +357,7 @@ app.post('/api/execute-generation', async (c) => {
     return c.json(response)
 
   } catch (error) {
-    console.error('OCR + Canvas editing error:', error)
+    console.error('Image editing error:', error)
     return c.json({ 
       error: '画像編集中にエラーが発生しました',
       details: error instanceof Error ? error.message : 'Unknown error'
