@@ -1,5 +1,4 @@
 import { PredictionServiceClient } from '@google-cloud/aiplatform';
-import { google } from '@google-cloud/aiplatform/build/protos/protos';
 import * as fs from 'fs';
 
 // Vertex AI クライアントの初期化
@@ -79,10 +78,10 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
       personGeneration: 'allow_adult',
     };
 
-    const request = {
+    const request: any = {
       endpoint,
-      instances: instances.map(i => ({ structValue: google.protobuf.Struct.fromObject(i) })),
-      parameters: google.protobuf.Struct.fromObject(parameters),
+      instances: instances,
+      parameters: parameters,
     };
 
     console.log('Calling Vertex AI Imagen API...');
@@ -91,11 +90,19 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
     if (response.predictions && response.predictions.length > 0) {
       const prediction = response.predictions[0];
       
-      // structValue から実際の値を取得
-      const predictionObj = prediction.structValue?.fields;
-      if (predictionObj && predictionObj.bytesBase64Encoded) {
-        const imageData = predictionObj.bytesBase64Encoded.stringValue;
-        
+      // レスポンスから画像データを取得
+      let imageData: string | undefined;
+      
+      // structValue から取得を試みる
+      if (prediction.structValue?.fields?.bytesBase64Encoded) {
+        imageData = prediction.structValue.fields.bytesBase64Encoded.stringValue;
+      }
+      // 直接アクセスを試みる
+      else if (prediction.bytesBase64Encoded) {
+        imageData = prediction.bytesBase64Encoded;
+      }
+      
+      if (imageData) {
         // 画像データをデータURLとして返す
         return `data:image/png;base64,${imageData}`;
       }
