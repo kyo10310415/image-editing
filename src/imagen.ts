@@ -19,9 +19,30 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
     throw new Error('GOOGLE_CLOUD_PROJECT environment variable is not set');
   }
 
-  const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  // Render環境でのシークレットファイルパス処理
+  // Renderでは /etc/secrets/ 配下にファイルが配置されるが、
+  // ファイル名にスラッシュが使えないため、ファイル名のみを指定
+  let credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  
+  // もし GOOGLE_APPLICATION_CREDENTIALS が設定されていない場合、
+  // デフォルトのファイル名を使用（Renderのシークレットファイル用）
   if (!credentials) {
-    throw new Error('GOOGLE_APPLICATION_CREDENTIALS environment variable is not set');
+    credentials = './gcp-key.json'; // ローカル開発用
+  }
+  
+  // 環境変数から直接JSON文字列を読み込む方法もサポート
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    // Base64デコードしてJSONファイルを一時的に作成
+    const keyContent = Buffer.from(
+      process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON,
+      'base64'
+    ).toString('utf-8');
+    
+    // 一時ファイルとして保存（メモリ内認証も可能）
+    const fs = require('fs');
+    const tmpPath = '/tmp/gcp-key.json';
+    fs.writeFileSync(tmpPath, keyContent);
+    credentials = tmpPath;
   }
 
   try {

@@ -26,6 +26,8 @@ node_modules/
 !package-lock.json
 !tsconfig.json
 !wrangler.jsonc
+gcp-key.json
+service-account-key.json
 
 # logs
 logs/

@@ -106,42 +106,42 @@ Render Dashboardで以下の環境変数を追加:
 | `PORT` | `3000` | サーバーポート（自動設定） |
 | `GOOGLE_CLOUD_PROJECT` | `your-project-id` | あなたのGCPプロジェクトID |
 | `GOOGLE_CLOUD_LOCATION` | `us-central1` | Vertex AIのリージョン |
-| `GOOGLE_APPLICATION_CREDENTIALS` | `/etc/secrets/gcp-key.json` | サービスアカウントキーのパス |
 
 #### 2.4 サービスアカウントキーの設定（重要）
 
-**方法1: Renderのシークレットファイル機能を使用（推奨）**
+Renderでは、ファイル名に**スラッシュ(`/`)を含めることができません**。以下の2つの方法から選択してください。
 
-1. Render Dashboard → あなたのサービス → **「Environment」** タブ
-2. **「Secret Files」** セクションで **「Add Secret File」** をクリック
-3. 以下を入力:
-   - **Filename**: `/etc/secrets/gcp-key.json`
-   - **Contents**: `service-account-key.json` の内容を貼り付け
-
-**方法2: 環境変数として設定（代替案）**
+**方法1: 環境変数として設定（最も簡単・推奨）** 🌟
 
 JSONキーをBase64エンコードして環境変数に設定:
 
 ```bash
-# ローカルでBase64エンコード
+# ローカルでBase64エンコード（改行なし）
+cat service-account-key.json | base64 -w 0
+
+# macOSの場合
 cat service-account-key.json | base64
 
-# Render環境変数に追加:
-# Key: GOOGLE_APPLICATION_CREDENTIALS_JSON
-# Value: <Base64エンコードされた文字列>
+# 出力された長い文字列をコピー
 ```
 
-そして、コードで以下のようにデコード:
-```typescript
-// src/imagen.ts で追加
-if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-  const keyContent = Buffer.from(
-    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON, 
-    'base64'
-  ).toString('utf-8');
-  // 一時ファイルに書き出すか、直接認証情報として使用
-}
-```
+Render Dashboard → Environment → Environment Variables で追加:
+- **Key**: `GOOGLE_APPLICATION_CREDENTIALS_JSON`
+- **Value**: `<Base64エンコードされた長い文字列>`
+
+**方法2: Renderのシークレットファイル機能を使用**
+
+1. Render Dashboard → あなたのサービス → **「Environment」** タブ
+2. **「Secret Files」** セクションで **「Add Secret File」** をクリック
+3. 以下を入力:
+   - **Filename**: `gcp-key.json`（スラッシュなし）
+   - **Contents**: `service-account-key.json` の内容を貼り付け
+
+そして、環境変数を追加:
+- **Key**: `GOOGLE_APPLICATION_CREDENTIALS`
+- **Value**: `./gcp-key.json`
+
+**注意**: Renderのシークレットファイルは `/opt/render/project/src/` ディレクトリに配置されます。
 
 #### 2.5 デプロイの実行
 1. **「Create Web Service」** をクリック
@@ -220,7 +220,7 @@ nano .env
 ```.env
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=us-central1
-GOOGLE_APPLICATION_CREDENTIALS=./service-account-key.json
+GOOGLE_APPLICATION_CREDENTIALS=./gcp-key.json
 PORT=3000
 NODE_ENV=development
 ```
@@ -228,7 +228,8 @@ NODE_ENV=development
 ### 4. サービスアカウントキーを配置
 ```bash
 # Google Cloudからダウンロードしたキーファイルをプロジェクトルートに配置
-cp ~/Downloads/service-account-key.json ./
+cp ~/Downloads/service-account-key.json ./gcp-key.json
+```
 ```
 
 ### 5. 開発サーバーの起動
