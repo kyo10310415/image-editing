@@ -20,25 +20,19 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
   }
 
   // Render環境でのシークレットファイルパス処理
-  // Renderでは /etc/secrets/ 配下にファイルが配置されるが、
-  // ファイル名にスラッシュが使えないため、ファイル名のみを指定
   let credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   
-  // もし GOOGLE_APPLICATION_CREDENTIALS が設定されていない場合、
-  // デフォルトのファイル名を使用（Renderのシークレットファイル用）
   if (!credentials) {
-    credentials = './gcp-key.json'; // ローカル開発用
+    credentials = './gcp-key.json';
   }
   
   // 環境変数から直接JSON文字列を読み込む方法もサポート
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-    // Base64デコードしてJSONファイルを一時的に作成
     const keyContent = Buffer.from(
       process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON,
       'base64'
     ).toString('utf-8');
     
-    // 一時ファイルとして保存
     const tmpPath = '/tmp/gcp-key.json';
     fs.writeFileSync(tmpPath, keyContent);
     credentials = tmpPath;
@@ -52,19 +46,18 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
 
     const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-001`;
 
-    // リクエストパラメータの構築
-    const instances: any[] = [
-      {
-        prompt: prompt,
-      },
-    ];
+    // Vertex AI Imagen 3 API の正しいリクエスト形式
+    // 参考: https://cloud.google.com/vertex-ai/generative-ai/docs/image/generate-images
+    const instance = {
+      prompt: prompt,
+    };
 
     // 参照画像がある場合は追加（編集モード）
     if (imageUrl) {
       // Data URLからBase64部分を抽出
       const base64Match = imageUrl.match(/^data:image\/\w+;base64,(.+)$/);
       if (base64Match) {
-        instances[0].image = {
+        (instance as any).image = {
           bytesBase64Encoded: base64Match[1],
         };
       }
@@ -72,20 +65,31 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
 
     const parameters = {
       sampleCount: 1,
+      // aspectRatio は "16:9" のような文字列形式
       aspectRatio: aspectRatio,
+      // 言語は "ja" または "en"
       language: 'ja',
+      // セーフティフィルター
       safetyFilterLevel: 'block_some',
+      // 人物生成の設定
       personGeneration: 'allow_adult',
     };
 
-    const request: any = {
-      endpoint,
-      instances: instances,
+    // API仕様に従ったリクエスト構造
+    const request = {
+      endpoint: endpoint,
+      instances: [instance],
       parameters: parameters,
     };
 
     console.log('Calling Vertex AI Imagen API...');
-    const [response] = await client.predict(request);
+    console.log('Endpoint:', endpoint);
+    console.log('Prompt length:', prompt.length);
+    console.log('Aspect ratio:', aspectRatio);
+    
+    const [response] = await client.predict(request as any);
+    
+    console.log('Response received from Vertex AI');
     
     if (response.predictions && response.predictions.length > 0) {
       const prediction = response.predictions[0];
@@ -93,31 +97,45 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
       // レスポンスから画像データを取得
       let imageData: string | undefined;
       
-      // structValue から取得を試みる
+      // 複数のフォーマットを試す
       if (prediction.structValue?.fields?.bytesBase64Encoded) {
         imageData = prediction.structValue.fields.bytesBase64Encoded.stringValue;
+        console.log('Image data extracted from structValue');
       }
-      // 直接アクセスを試みる
-      else if (prediction.bytesBase64Encoded) {
-        imageData = prediction.bytesBase64Encoded;
+      else if ((prediction as any).bytesBase64Encoded) {
+        imageData = (prediction as any).bytesBase64Encoded;
+        console.log('Image data extracted directly');
       }
       
       if (imageData) {
+        console.log('Image generated successfully, data length:', imageData.length);
         // 画像データをデータURLとして返す
         return `data:image/png;base64,${imageData}`;
       }
     }
     
+    console.error('No image data in response');
     throw new Error('No image generated from Imagen API');
   } catch (error: any) {
     console.error('Imagen API error:', error);
+    
+    // 詳細なエラー情報をログ
     if (error.message) {
       console.error('Error message:', error.message);
     }
     if (error.code) {
       console.error('Error code:', error.code);
     }
-    throw new Error(`Imagen API failed: ${error.message || 'Unknown error'}`);
+    if (error.details) {
+      console.error('Error details:', error.details);
+    }
+    if (error.metadata) {
+      console.error('Error metadata:', error.metadata);
+    }
+    
+    // より詳細なエラーメッセージを返す
+    const errorMsg = error.details || error.message || 'Unknown error';
+    throw new Error(`Imagen API failed: ${errorMsg} (code: ${error.code || 'unknown'})`);
   }
 }
 
