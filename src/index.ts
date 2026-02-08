@@ -318,14 +318,25 @@ app.post('/api/execute-generation', async (c) => {
       aspectRatio: '16:9'
     })
 
-    return c.json({
+    console.log('Generated image URL length:', generatedImageUrl?.length || 0)
+    console.log('Generated image URL preview:', generatedImageUrl?.substring(0, 100) || 'undefined')
+
+    const response = {
       success: true,
       generated_images: [
         {
           url: generatedImageUrl
         }
       ]
-    })
+    }
+    
+    console.log('Response structure:', JSON.stringify({
+      success: response.success,
+      generated_images_count: response.generated_images.length,
+      first_url_length: response.generated_images[0]?.url?.length || 0
+    }))
+
+    return c.json(response)
 
   } catch (error) {
     console.error('Execute generation error:', error)
