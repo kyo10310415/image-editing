@@ -2,7 +2,11 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { generateImageWithImagen } from './imagen.js'
-import 'dotenv/config'
+
+// Load .env file only in development
+if (process.env.NODE_ENV !== 'production') {
+  await import('dotenv/config')
+}
 
 const app = new Hono()
 
