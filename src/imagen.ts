@@ -1,4 +1,4 @@
-import { PredictionServiceClient } from '@google-cloud/aiplatform';
+import { PredictionServiceClient, helpers } from '@google-cloud/aiplatform';
 import * as fs from 'fs';
 
 // Vertex AI クライアントの初期化
@@ -71,15 +71,18 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
       language: 'ja',
       // セーフティフィルター
       safetyFilterLevel: 'block_some',
-      // 人物生成の設定
-      personGeneration: 'allow_adult',
+      // personGeneration は許可リスト制限があるため削除
     };
+
+    // helpers.toValue() を使用してprotobuf形式に変換
+    const instanceValue = helpers.toValue(instance);
+    const parametersValue = helpers.toValue(parameters);
 
     // API仕様に従ったリクエスト構造
     const request = {
       endpoint: endpoint,
-      instances: [instance],
-      parameters: parameters,
+      instances: [instanceValue],
+      parameters: parametersValue,
     };
 
     console.log('Calling Vertex AI Imagen API...');
