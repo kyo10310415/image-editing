@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
-import { cors } from 'hono/cors'
+import { bodyLimit } from 'hono/body-limit'
+import { securityBoundary, imageInputBoundary } from './security.js'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { generateImageWithImagen } from './imagen.js'
 import { editImageWithCanvas } from './canvas-editor.js'
@@ -13,8 +14,10 @@ if (process.env.NODE_ENV !== 'production') {
 
 const app = new Hono()
 
-// CORS設定
-app.use('/api/*', cors())
+// Protect the UI and APIs together. Never let an unconfigured deployment serve data.
+app.use('*', securityBoundary())
+app.use('/api/*', bodyLimit({ maxSize: 12 * 1024 * 1024 }))
+app.use('/api/*', imageInputBoundary)
 
 // 静的ファイル配信
 app.use('/static/*', serveStatic({ root: './public' }))
@@ -469,14 +472,15 @@ app.get('/', (c) => {
                                 ファイルをアップロード
                             </label>
                             <label class="flex items-center text-sm text-gray-600">
-                                <input type="radio" name="imageInputType" value="url" class="mr-2">
+                                <input type="radio" name="imageInputType" value="url" disabled class="mr-2">
                                 画像URLを入力
                             </label>
                         </div>
                         
                         <div id="fileUploadSection">
                             <div class="border-2 border-dashed border-indigo-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors cursor-pointer" id="dropZone">
-                                <input type="file" id="imageInput" accept="image/*" multiple class="hidden">
+                                <input type="file" id="imageInput" accept="image/png,image/jpeg" multiple class="hidden">
+                                <p>PNG/JPEGをアップロードしてください（1枚5MiB・1600万画素まで、最大5枚）。URL入力は利用できません。</p>
                                 <i class="fas fa-cloud-upload-alt text-5xl text-indigo-400 mb-3"></i>
                                 <p class="text-gray-600">クリックまたはドラッグ&ドロップ</p>
                                 <p class="text-sm text-gray-500 mt-2">PNG, JPG, JPEG対応（複数選択可能）</p>
