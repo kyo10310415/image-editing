@@ -73,7 +73,7 @@ export async function editImageWithUserCoordinates(params: EditImageWithCoordina
       drawTextInArea(ctx, area, coord, bgColor);
     }
 
-    const result = canvas.toDataURL('image/png', 0.95);
+    const result = canvas.toDataURL('image/png');
     console.log('✅ User-coordinate editing completed');
     console.log('📊 Result size:', result.length, 'characters');
 

@@ -102,7 +102,7 @@ export async function generateImageWithImagen(params: GenerateImageParams): Prom
       
       // 複数のフォーマットを試す
       if (prediction.structValue?.fields?.bytesBase64Encoded) {
-        imageData = prediction.structValue.fields.bytesBase64Encoded.stringValue;
+        imageData = prediction.structValue.fields.bytesBase64Encoded.stringValue ?? undefined;
         console.log('Image data extracted from structValue');
       }
       else if ((prediction as any).bytesBase64Encoded) {

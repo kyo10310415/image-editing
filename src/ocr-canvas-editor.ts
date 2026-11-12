@@ -1,5 +1,5 @@
 import { createCanvas, loadImage, Image } from 'canvas';
-import Tesseract from 'tesseract.js';
+import { getLayout, recognizeLayout } from './ocr-layout.js';
 
 interface EditImageParams {
   imageUrl: string;
@@ -48,28 +48,15 @@ export async function editImageWithOCR(params: EditImageParams): Promise<string>
 
     // OCRでテキスト検出
     console.log('🔍 Running OCR to detect text positions...');
-    const ocrResult = await Tesseract.recognize(imageUrl, 'jpn+eng', {
-      logger: (m) => {
-        if (m.status === 'recognizing text') {
-          console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
-        }
+    const ocrResult = await recognizeLayout(imageUrl, (m) => {
+      if (m.status === 'recognizing text') {
+        console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
       }
     });
 
     console.log('✅ OCR completed');
-    
-    // OCR結果のデバッグ出力
-    console.log('📊 OCR Result structure:', {
-      hasData: !!ocrResult.data,
-      hasWords: !!ocrResult.data?.words,
-      hasLines: !!ocrResult.data?.lines,
-      text: ocrResult.data?.text?.substring(0, 100)
-    });
+    const { words, lines } = getLayout(ocrResult.data);
 
-    // wordsが存在しない場合はlinesを使用
-    const words = ocrResult.data?.words || [];
-    const lines = ocrResult.data?.lines || [];
-    
     console.log('📝 Detected text boxes:', words.length, 'words,', lines.length, 'lines');
 
     // 検出されたテキストボックスを解析
@@ -137,7 +124,7 @@ export async function editImageWithOCR(params: EditImageParams): Promise<string>
     }
 
     // Canvas を Data URL として返す
-    const result = canvas.toDataURL('image/png', 0.95);
+    const result = canvas.toDataURL('image/png');
     console.log('✅ OCR + Canvas editing completed');
 
     return result;
@@ -394,7 +381,7 @@ async function editImageWithSimpleCanvas(params: EditImageParams): Promise<strin
     ctx.textAlign = 'left';
     ctx.fillText(`¥${hardPrice.toLocaleString('ja-JP')}`, hardPriceX, hardPriceY + 40);
 
-    const result = canvas.toDataURL('image/png', 0.95);
+    const result = canvas.toDataURL('image/png');
     console.log('✅ Simple Canvas editing completed');
     console.log('📊 Result size:', result.length, 'characters');
     
